@@ -1402,11 +1402,36 @@ a {
 .pill--stoploss-ok { color: var(--long); border-color: #1f5733; }
 .pill--stoploss-no { color: var(--short); border-color: #5c2424; }
 .pill--stoploss-partial { color: var(--accent); border-color: var(--accent-dim); }
+
+/* ===== 폰 동기화 관련 ===== */
+.sync-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sync-badge {
+  background: var(--short);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  line-height: 1.4;
+}
+.pill--synced-pc {
+  color: #4a7fa5;
+  border-color: #2a3f55;
+  font-size: 10px;
+}
+.pnl-usdt {
+  white-space: nowrap;
+}
 .dt-mask-wrap{width:100%;min-width:180px;}.dt-mask-input{width:100%;padding:8px 10px;font-size:13px;font-family:var(--font-mono);letter-spacing:0.04em;background:var(--bg-input);border:1px solid var(--panel-border);border-radius:var(--radius-sm);color:var(--text);-webkit-appearance:none;}.dt-mask-input:focus{outline:2px solid var(--accent-dim);}.dt-input,.dt-sep{display:none!important;}.bulk-table__head,.bulk-table__row{grid-template-columns:80px 65px 95px 95px 90px 60px 70px 80px 200px 200px 80px 28px!important;min-width:1290px!important;}.pnl-usdt{font-family:var(--font-mono);font-size:11px;white-space:nowrap;display:block;text-align:right;}.trade-card__pnl{display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:120px;}.badge--synced{background:#1a2230;color:#4a7fa5;font-size:9px;padding:2px 5px;border-radius:3px;border:1px solid #2a3f55;}.sync-btn{position:relative;display:inline-flex;align-items:center;gap:5px;}.sync-badge{background:var(--short);color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;line-height:1.4;}.app-shell{padding-top:max(20px,env(safe-area-inset-top));padding-bottom:calc(60px + env(safe-area-inset-bottom));}.app-footer{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:22px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:rgba(11,14,20,0.95);backdrop-filter:blur(8px);border-top:1px solid var(--panel-border);}input,select,textarea{font-size:16px!important;}.dt-mask-input{font-size:13px!important;}</style>
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=5" />
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=5" />
-<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=5" />
-<link rel="manifest" href="manifest.webmanifest?v=5" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=6" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=6" />
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=6" />
+<link rel="manifest" href="manifest.webmanifest?v=6" />
 
 </head><body><div id="root"></div><script>/**
  * @license React
@@ -1912,11 +1937,10 @@ const OkxClient = {
 window.OkxClient = OkxClient;
 </script><script>const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
-// constants.js
-
-const SETUP_TYPES = ['돌파', '눌림목', '추세추종', '역추세', '스캘핑', '지지/저항', '기타'];
-const EMOTIONS = ['차분', '확신', '조급', 'FOMO', '복수심', '지루함', '공포', '욕심'];
-const MISTAKE_TAGS = ['추격매수', '손절미룸', '과레버리지', '계획이탈', '조기익절', '물타기', '뇌동진입'];
+// constants
+const SETUP_TYPES = ['돌파', '눌림목', '추세추종', '역추세', '스캘핑', '지지/저항', '매물대', '기타'];
+const EMOTIONS = ['차분', '확신', '조급', 'FOMO', '복수심', '지루함', '공포', '욕심', '불안함'];
+const MISTAKE_TAGS = ['추격매수', '손절미룸', '과레버리지', '계획이탈', '조기익절', '물타기', '뇌동진입', '조급함'];
 const STOPLOSS_OPTIONS = ['걸었음', '안 걸었음', '일부만'];
 const TIMEFRAMES = [
   { value: '1m', label: '1분' },
@@ -1971,6 +1995,68 @@ function getSetupTypes(trade) {
   return [];
 }
 
+// ===== period (일/주/월) 기준 누적 승률 계산 =====
+function periodKey(dateStr, mode) {
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return null;
+  if (mode === 'day') return d.toISOString().slice(0, 10);
+  if (mode === 'month') return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const tmp = new Date(d);
+  const day = (tmp.getDay() + 6) % 7;
+  tmp.setDate(tmp.getDate() - day);
+  tmp.setHours(0, 0, 0, 0);
+  return tmp.toISOString().slice(0, 10);
+}
+
+function periodLabel(key, mode) {
+  if (mode === 'month') {
+    const [y, m] = key.split('-');
+    return `${y}.${m}`;
+  }
+  if (mode === 'week') {
+    const d = new Date(key);
+    const end = new Date(d);
+    end.setDate(end.getDate() + 6);
+    const fmt = (x) => `${x.getMonth() + 1}.${x.getDate()}`;
+    return `${fmt(d)}~${fmt(end)}`;
+  }
+  const d = new Date(key);
+  return `${d.getMonth() + 1}.${d.getDate()}`;
+}
+
+function buildWinRateSeries(trades, mode) {
+  const withTime = trades
+    .filter((t) => t.entryTime)
+    .map((t) => ({ ...t, _key: periodKey(t.entryTime, mode) }))
+    .filter((t) => t._key)
+    .sort((a, b) => new Date(a.entryTime) - new Date(b.entryTime));
+
+  if (withTime.length === 0) return [];
+
+  const orderedKeys = [];
+  withTime.forEach((t) => {
+    if (!orderedKeys.includes(t._key)) orderedKeys.push(t._key);
+  });
+
+  let cumWins = 0;
+  let cumTotal = 0;
+  let prevRate = null;
+  const rows = [];
+
+  orderedKeys.forEach((key) => {
+    const periodTrades = withTime.filter((t) => t._key === key);
+    periodTrades.forEach((t) => {
+      cumTotal += 1;
+      if ((t.pnlPct ?? 0) > 0) cumWins += 1;
+    });
+    const rate = (cumWins / cumTotal) * 100;
+    const change = prevRate === null ? null : rate - prevRate;
+    rows.push({ key, label: periodLabel(key, mode), count: periodTrades.length, cumTotal, winRate: rate, change });
+    prevRate = rate;
+  });
+
+  return rows.reverse();
+}
 // ===== period (일/주/월) 기준 누적 승률 계산 =====
 function periodKey(dateStr, mode) {
   const d = new Date(dateStr);
@@ -3400,7 +3486,7 @@ _root.render(/*#__PURE__*/React.createElement(App, null));</script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./service-worker.js?v=5').catch(function (error) {
+    navigator.serviceWorker.register('./service-worker.js?v=6').catch(function (error) {
       console.warn('Service worker registration failed:', error);
     });
   });
