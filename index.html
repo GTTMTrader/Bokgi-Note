@@ -1427,11 +1427,45 @@ a {
 .pnl-usdt {
   white-space: nowrap;
 }
-.dt-mask-wrap{width:100%;min-width:180px;}.dt-mask-input{width:100%;padding:8px 10px;font-size:13px;font-family:var(--font-mono);letter-spacing:0.04em;background:var(--bg-input);border:1px solid var(--panel-border);border-radius:var(--radius-sm);color:var(--text);-webkit-appearance:none;}.dt-mask-input:focus{outline:2px solid var(--accent-dim);}.dt-input,.dt-sep{display:none!important;}.bulk-table__head,.bulk-table__row{grid-template-columns:80px 65px 95px 95px 90px 60px 70px 80px 200px 200px 80px 28px!important;min-width:1290px!important;}.pnl-usdt{font-family:var(--font-mono);font-size:11px;white-space:nowrap;display:block;text-align:right;}.trade-card__pnl{display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:120px;}.badge--synced{background:#1a2230;color:#4a7fa5;font-size:9px;padding:2px 5px;border-radius:3px;border:1px solid #2a3f55;}.sync-btn{position:relative;display:inline-flex;align-items:center;gap:5px;}.sync-badge{background:var(--short);color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;line-height:1.4;}.app-shell{padding-top:max(20px,env(safe-area-inset-top));padding-bottom:calc(60px + env(safe-area-inset-bottom));}.app-footer{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:22px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:rgba(11,14,20,0.95);backdrop-filter:blur(8px);border-top:1px solid var(--panel-border);}input,select,textarea{font-size:16px!important;}.dt-mask-input{font-size:13px!important;}</style>
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=6" />
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=6" />
-<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=6" />
-<link rel="manifest" href="manifest.webmanifest?v=6" />
+
+/* ===== 거래 정보 수정 그리드 ===== */
+.edit-core-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+.edit-core-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.edit-core-field input,
+.edit-core-field select {
+  padding: 8px 10px;
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+}
+.edit-core-hint {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin: 8px 0 0;
+}
+@media (max-width: 600px) {
+  .edit-core-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.dt-mask-wrap{width:100%;min-width:180px;}.dt-mask-input{width:100%;padding:8px 10px;font-size:13px;font-family:var(--font-mono);letter-spacing:0.04em;background:var(--bg-input);border:1px solid var(--panel-border);border-radius:var(--radius-sm);color:var(--text);-webkit-appearance:none;}.dt-mask-input:focus{outline:2px solid var(--accent-dim);}.dt-input,.dt-sep{display:none!important;}.bulk-table__head,.bulk-table__row{grid-template-columns:80px 65px 95px 95px 90px 60px 70px 80px 200px 200px 80px 28px!important;min-width:1290px!important;}.pnl-usdt{font-family:var(--font-mono);font-size:11px;white-space:nowrap;display:block;text-align:right;}.trade-card__pnl{display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:120px;}.badge--synced{background:#1a2230;color:#4a7fa5;font-size:9px;padding:2px 5px;border-radius:3px;border:1px solid #2a3f55;}.sync-btn{position:relative;display:inline-flex;align-items:center;gap:5px;}.sync-badge{background:var(--short);color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;line-height:1.4;}.app-shell{padding-top:max(20px,env(safe-area-inset-top));padding-bottom:calc(60px + env(safe-area-inset-bottom));}.app-footer{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:22px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:rgba(11,14,20,0.95);backdrop-filter:blur(8px);border-top:1px solid var(--panel-border);}input,select,textarea{font-size:16px!important;}.dt-mask-input{font-size:13px!important;}.trade-chart{position:relative;width:100%;height:280px;background:#0d1117;border-radius:8px;overflow:hidden;}.trade-chart__canvas{width:100%;height:280px;}.trade-chart__overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:#0d1117;color:#8b92a3;font-size:13px;text-align:center;padding:20px;}.trade-chart__overlay--error{color:#ef4444;}.trade-chart__error-detail{color:#6b7280;font-size:11px;}.tips-view{display:flex;flex-direction:column;gap:12px;}.tip-form{background:var(--bg-elevated);border:1px solid var(--panel-border);border-radius:var(--radius-md);padding:16px;display:flex;flex-direction:column;gap:12px;margin-bottom:4px;}.tip-card{background:var(--bg-elevated);border:1px solid var(--panel-border);border-radius:var(--radius-md);padding:14px 16px;}.tip-card__top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}.tip-card__symbol{font-family:var(--font-mono);font-weight:700;font-size:14px;color:var(--accent);}.tip-card__source{font-size:11px;color:var(--text-faint);}.tip-card__note{font-size:13px;color:var(--text);line-height:1.6;white-space:pre-wrap;margin:0 0 8px;}.tip-card__actions{display:flex;gap:14px;}.chart-pattern-input{width:100%;padding:8px 10px;background:var(--bg-input);border:1px solid var(--accent-dim);border-radius:var(--radius-sm);color:var(--text);font-size:14px;}.edit-core-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:8px;}.edit-core-field{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--text-faint);}.edit-core-field input,.edit-core-field select{padding:8px 10px;font-size:16px;border-radius:var(--radius-sm);background:var(--bg-input);border:1px solid var(--panel-border);color:var(--text);}.edit-core-hint{font-size:11px;color:var(--text-faint);margin:8px 0 0;}</style>
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=7" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=7" />
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=7" />
+<link rel="manifest" href="manifest.webmanifest?v=7" />
 
 </head><body><div id="root"></div><script>/**
  * @license React
@@ -1804,141 +1838,190 @@ window.TradeStore={
     });
   },
 };
-</script><script>// 브라우저에서 OKX 공개 API를 직접 호출하고, CORS 등으로 실패하면
-// 공개 CORS 프록시를 거쳐 한 번 더 시도합니다. 인증키가 필요 없는
-// market 데이터만 사용합니다.
+
+// ===== TipStore (팁 노트) =====
+const TIP_DB = 'bokgi-tips-ios', TIP_STORE = 'tips';
+function openTipDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(TIP_DB, 1);
+    r.onupgradeneeded = () => { const db = r.result; if (!db.objectStoreNames.contains(TIP_STORE)) db.createObjectStore(TIP_STORE, {keyPath:'id'}); };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+window.TipStore = {
+  async getAll() {
+    const db = await openTipDB();
+    return new Promise((res, rej) => {
+      const req = db.transaction(TIP_STORE,'readonly').objectStore(TIP_STORE).getAll();
+      req.onsuccess = () => { const rows = req.result||[]; rows.sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)); res(rows); };
+      req.onerror = () => rej(req.error);
+    });
+  },
+  async add(tip) {
+    const db = await openTipDB();
+    const r = { id: uid(), createdAt: new Date().toISOString(), ...tip };
+    return new Promise((res, rej) => { const tx = db.transaction(TIP_STORE,'readwrite'); tx.objectStore(TIP_STORE).add(r); tx.oncomplete = () => res(r); tx.onerror = () => rej(tx.error); });
+  },
+  async update(id, patch) {
+    const db = await openTipDB();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(TIP_STORE,'readwrite'), s = tx.objectStore(TIP_STORE), req = s.get(id);
+      req.onsuccess = () => { if (!req.result) { rej(new Error('not found')); return; } const u = {...req.result,...patch,id}; s.put(u); tx.oncomplete = () => res(u); };
+      req.onerror = () => rej(req.error);
+    });
+  },
+  async remove(id) {
+    const db = await openTipDB();
+    return new Promise((res, rej) => { const tx = db.transaction(TIP_STORE,'readwrite'); tx.objectStore(TIP_STORE).delete(id); tx.oncomplete = () => res(true); tx.onerror = () => rej(tx.error); });
+  },
+  async importJSON(items) {
+    const db = await openTipDB();
+    const existing = await new Promise((res,rej) => { const req = db.transaction(TIP_STORE,'readonly').objectStore(TIP_STORE).getAllKeys(); req.onsuccess = () => res(new Set(req.result)); req.onerror = () => rej(req.error); });
+    const toAdd = items.filter(t => t.id && !existing.has(t.id));
+    const noId = items.filter(t => !t.id).map(t => ({...t, id: uid()}));
+    const all = [...toAdd, ...noId];
+    if (all.length === 0) return { added: 0, skipped: items.length };
+    return new Promise((res, rej) => { const tx = db.transaction(TIP_STORE,'readwrite'), s = tx.objectStore(TIP_STORE); all.forEach(t => s.put(t)); tx.oncomplete = () => res({ added: all.length, skipped: items.length - all.length }); tx.onerror = () => rej(tx.error); });
+  },
+};
+</script><script>// OKX 공개 API 클라이언트 - 아이폰 Safari 최적화 버전
+// 직접 호출 → corsproxy.io → allorigins.win 순서로 시도
+// 타임아웃을 짧게 잡아서 빠르게 다음 프록시로 넘어감
 
 const OKX_BASE = 'https://www.okx.com';
 
-// 순서대로 시도. corsproxy.io / allorigins 둘 다 무료 공개 프록시.
 function proxyUrls(targetUrl) {
   return [
-    targetUrl, // 1) 직접 호출
-    `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+    targetUrl,
+    'https://corsproxy.io/?url=' + encodeURIComponent(targetUrl),
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl),
   ];
 }
 
-async function fetchJsonWithFallback(targetUrl, { timeoutMs = 9000 } = {}) {
+async function fetchJsonWithFallback(targetUrl, timeoutMs) {
+  timeoutMs = timeoutMs || 6000;
   const attempts = proxyUrls(targetUrl);
-  let lastError = null;
-  for (const url of attempts) {
+  var lastError = null;
+  for (var i = 0; i < attempts.length; i++) {
+    var url = attempts[i];
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      const res = await fetch(url, { signal: controller.signal });
+      var controller = new AbortController();
+      var timer = setTimeout(function() { controller.abort(); }, timeoutMs);
+      var res = await fetch(url, { signal: controller.signal });
       clearTimeout(timer);
       if (!res.ok) {
-        lastError = new Error(`HTTP ${res.status}`);
+        lastError = new Error('HTTP ' + res.status + ' (' + url.slice(0, 40) + ')');
         continue;
       }
-      const data = await res.json();
+      var data = await res.json();
       return data;
     } catch (err) {
       lastError = err;
       continue;
     }
   }
-  throw lastError || new Error('알 수 없는 오류로 OKX에 연결할 수 없어요');
+  throw lastError || new Error('OKX에 연결할 수 없어요');
 }
 
-const BAR_MAP = { '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1H', '4h': '4H', '1d': 'Dutc' };
-const BAR_SECONDS = { '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400 };
+var BAR_MAP = { '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1H', '4h': '4H', '1d': '1Dutc' };
+var BAR_SECONDS = { '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400 };
 
 function toInstId(symbolRaw) {
-  let s = (symbolRaw || 'BTC').trim().toUpperCase();
+  var s = ((symbolRaw || 'BTC') + '').trim().toUpperCase();
   s = s.replace(/USDT$/, '-USDT').replace(/--/g, '-');
-  if (!s.includes('-')) s = `${s}-USDT`;
-  if (!s.endsWith('-SWAP')) s = `${s}-SWAP`;
+  if (s.indexOf('-') < 0) s = s + '-USDT';
+  if (!s.endsWith('-SWAP')) s = s + '-SWAP';
   return s;
 }
 
 function normalizeCandles(rows) {
-  return rows
-    .map((r) => ({
+  return rows.map(function(r) {
+    return {
       time: Math.floor(Number(r[0]) / 1000),
       open: Number(r[1]),
       high: Number(r[2]),
       low: Number(r[3]),
       close: Number(r[4]),
       volume: Number(r[5]),
-    }))
-    .sort((a, b) => a.time - b.time);
+    };
+  }).sort(function(a, b) { return a.time - b.time; });
 }
 
-const OkxClient = {
-  toInstId,
+window.OkxClient = {
+  toInstId: toInstId,
 
-  async getCandles({ symbol, timeframe = '15m', entryTime, exitTime }) {
-    const instId = toInstId(symbol);
-    const bar = BAR_MAP[timeframe] || '15m';
-    const barSeconds = BAR_SECONDS[timeframe] || 900;
+  getCandles: async function(opts) {
+    var symbol = opts.symbol, timeframe = opts.timeframe || '15m';
+    var entryTime = opts.entryTime, exitTime = opts.exitTime;
+    var instId = toInstId(symbol);
+    var bar = BAR_MAP[timeframe] || '15m';
+    var barSeconds = BAR_SECONDS[timeframe] || 900;
 
-    const entryMs = entryTime ? new Date(entryTime).getTime() : Date.now();
-    const exitMs = exitTime ? new Date(exitTime).getTime() : entryMs;
-    const padCandles = 40;
-    const windowStartMs = Math.min(entryMs, exitMs) - padCandles * barSeconds * 1000;
-    const windowEndMs = Math.max(entryMs, exitMs) + padCandles * barSeconds * 1000;
-    const nowMs = Date.now();
-    const isRecent = nowMs - windowStartMs < barSeconds * 1000 * 1440 * 0.9;
+    var entryMs = entryTime ? new Date(entryTime).getTime() : Date.now();
+    var exitMs = exitTime ? new Date(exitTime).getTime() : entryMs;
+    var padCandles = 40;
+    var windowStartMs = Math.min(entryMs, exitMs) - padCandles * barSeconds * 1000;
+    var windowEndMs = Math.max(entryMs, exitMs) + padCandles * barSeconds * 1000;
+    var nowMs = Date.now();
+    var isRecent = nowMs - windowStartMs < barSeconds * 1000 * 1440 * 0.9;
 
-    let candles = [];
+    var candles = [];
 
     if (isRecent) {
-      const url = `${OKX_BASE}/api/v5/market/candles?instId=${encodeURIComponent(instId)}&bar=${encodeURIComponent(bar)}&limit=300`;
-      const json = await fetchJsonWithFallback(url);
+      var url = OKX_BASE + '/api/v5/market/candles?instId=' + encodeURIComponent(instId) + '&bar=' + encodeURIComponent(bar) + '&limit=300';
+      var json = await fetchJsonWithFallback(url, 6000);
       if (json.code === '0' && Array.isArray(json.data)) {
         candles = normalizeCandles(json.data);
       }
     }
 
-    const haveEnoughHistory = candles.length > 0 && candles[0].time * 1000 <= windowStartMs;
+    var haveEnough = candles.length > 0 && candles[0].time * 1000 <= windowStartMs;
 
-    if (!haveEnoughHistory) {
-      let before = windowEndMs;
-      let collected = isRecent ? candles : [];
-      for (let i = 0; i < 8; i++) {
-        const url = `${OKX_BASE}/api/v5/market/history-candles?instId=${encodeURIComponent(instId)}&bar=${encodeURIComponent(bar)}&after=${before}&limit=100`;
-        const json = await fetchJsonWithFallback(url);
-        if (json.code !== '0' || !Array.isArray(json.data) || json.data.length === 0) break;
-        const norm = normalizeCandles(json.data);
+    if (!haveEnough) {
+      var before = windowEndMs;
+      var collected = isRecent ? candles : [];
+      for (var i = 0; i < 8; i++) {
+        var hurl = OKX_BASE + '/api/v5/market/history-candles?instId=' + encodeURIComponent(instId) + '&bar=' + encodeURIComponent(bar) + '&after=' + before + '&limit=100';
+        var hjson = await fetchJsonWithFallback(hurl, 6000);
+        if (hjson.code !== '0' || !Array.isArray(hjson.data) || hjson.data.length === 0) break;
+        var norm = normalizeCandles(hjson.data);
         collected = collected.concat(norm);
-        const oldest = norm[0].time * 1000;
+        var oldest = norm[0].time * 1000;
         before = oldest;
         if (oldest <= windowStartMs) break;
       }
-      const map = new Map();
-      collected.forEach((c) => map.set(c.time, c));
-      candles = Array.from(map.values()).sort((a, b) => a.time - b.time);
+      var map = new Map();
+      collected.forEach(function(c) { map.set(c.time, c); });
+      candles = Array.from(map.values()).sort(function(a, b) { return a.time - b.time; });
     }
 
-    const startSec = Math.floor(windowStartMs / 1000);
-    const endSec = Math.floor((windowEndMs + barSeconds * 1000) / 1000);
-    const trimmed = candles.filter((c) => c.time >= startSec && c.time <= endSec);
+    var startSec = Math.floor(windowStartMs / 1000);
+    var endSec = Math.floor((windowEndMs + barSeconds * 1000) / 1000);
+    var trimmed = candles.filter(function(c) { return c.time >= startSec && c.time <= endSec; });
 
     return {
-      instId,
-      bar,
+      instId: instId,
+      bar: bar,
       candles: trimmed.length ? trimmed : candles.slice(-200),
     };
   },
 
-  async getPrice(symbol) {
-    const instId = toInstId(symbol);
-    const url = `${OKX_BASE}/api/v5/market/ticker?instId=${encodeURIComponent(instId)}`;
-    const json = await fetchJsonWithFallback(url);
+  getPrice: async function(symbol) {
+    var instId = toInstId(symbol);
+    var url = OKX_BASE + '/api/v5/market/ticker?instId=' + encodeURIComponent(instId);
+    var json = await fetchJsonWithFallback(url, 6000);
     if (json.code === '0' && json.data && json.data[0]) {
-      return { instId, last: Number(json.data[0].last) };
+      return { instId: instId, last: Number(json.data[0].last) };
     }
     throw new Error(json.msg || '종목을 찾을 수 없어요');
   },
 };
-
-window.OkxClient = OkxClient;
 </script><script>const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
-// constants
-const SETUP_TYPES = ['돌파', '눌림목', '추세추종', '역추세', '스캘핑', '지지/저항', '매물대', '기타'];
+// constants.js
+
+const SETUP_TYPES = ['돌파', '눌림목', '추세추종', '역추세', '스캘핑', '지지/저항', '매물대', '차트패턴'];
 const EMOTIONS = ['차분', '확신', '조급', 'FOMO', '복수심', '지루함', '공포', '욕심', '불안함'];
 const MISTAKE_TAGS = ['추격매수', '손절미룸', '과레버리지', '계획이탈', '조기익절', '물타기', '뇌동진입', '조급함'];
 const STOPLOSS_OPTIONS = ['걸었음', '안 걸었음', '일부만'];
@@ -2057,169 +2140,127 @@ function buildWinRateSeries(trades, mode) {
 
   return rows.reverse();
 }
-// ===== period (일/주/월) 기준 누적 승률 계산 =====
-function periodKey(dateStr, mode) {
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return null;
-  if (mode === 'day') return d.toISOString().slice(0, 10);
-  if (mode === 'month') return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  const tmp = new Date(d);
-  const day = (tmp.getDay() + 6) % 7;
-  tmp.setDate(tmp.getDate() - day);
-  tmp.setHours(0, 0, 0, 0);
-  return tmp.toISOString().slice(0, 10);
-}
-
-function periodLabel(key, mode) {
-  if (mode === 'month') {
-    const [y, m] = key.split('-');
-    return `${y}.${m}`;
-  }
-  if (mode === 'week') {
-    const d = new Date(key);
-    const end = new Date(d);
-    end.setDate(end.getDate() + 6);
-    const fmt = (x) => `${x.getMonth() + 1}.${x.getDate()}`;
-    return `${fmt(d)}~${fmt(end)}`;
-  }
-  const d = new Date(key);
-  return `${d.getMonth() + 1}.${d.getDate()}`;
-}
-
-function buildWinRateSeries(trades, mode) {
-  const withTime = trades
-    .filter((t) => t.entryTime)
-    .map((t) => ({ ...t, _key: periodKey(t.entryTime, mode) }))
-    .filter((t) => t._key)
-    .sort((a, b) => new Date(a.entryTime) - new Date(b.entryTime));
-
-  if (withTime.length === 0) return [];
-
-  const orderedKeys = [];
-  withTime.forEach((t) => {
-    if (!orderedKeys.includes(t._key)) orderedKeys.push(t._key);
-  });
-
-  let cumWins = 0;
-  let cumTotal = 0;
-  let prevRate = null;
-  const rows = [];
-
-  orderedKeys.forEach((key) => {
-    const periodTrades = withTime.filter((t) => t._key === key);
-    periodTrades.forEach((t) => {
-      cumTotal += 1;
-      if ((t.pnlPct ?? 0) > 0) cumWins += 1;
-    });
-    const rate = (cumWins / cumTotal) * 100;
-    const change = prevRate === null ? null : rate - prevRate;
-    rows.push({ key, label: periodLabel(key, mode), count: periodTrades.length, cumTotal, winRate: rate, change });
-    prevRate = rate;
-  });
-
-  return rows.reverse();
-}
 
 // DateTimeInput.jsx
 
-// 마스크 포맷: "2026-MM-DD HH:MM:SS"
-// 사용자는 숫자만 입력, 하이픈/콜론/공백은 자동 삽입
-// 내부 value는 "YYYY-MM-DDTHH:MM:SS" ISO 형태
-
-const MASK = '2026-MM-DD HH:MM:SS';
-const SEP = {
+// 포맷: 2026-MM-DD HH:MM:SS
+// digits = 순수 숫자 문자열 (최대 14자리, 앞 4자리는 2026 고정)
+// SEP_POS: digits 인덱스 기준 구분자 삽입 위치
+const SEP_AT = {
   4: '-',
-  7: '-',
-  10: ' ',
-  13: ':',
-  16: ':'
+  6: '-',
+  8: ' ',
+  10: ':',
+  12: ':'
 };
-function digitsToDisplay(digits) {
-  // digits: 최대 14자리 숫자 문자열 (YYYY MM DD HH MM SS)
-  let result = '';
-  let di = 0;
-  for (let i = 0; i < MASK.length; i++) {
-    if (SEP[i] !== undefined) {
-      result += SEP[i];
-    } else if (di < digits.length) {
-      result += digits[di++];
-    } else {
-      // placeholder 문자 (M, D, H, S 등)
-      result += MASK[i];
-    }
+function digitsToDisplay(d) {
+  // d = "20260626234258" → "2026-06-26 23:42:58"
+  let out = '';
+  for (let i = 0; i < 14; i++) {
+    if (SEP_AT[i]) out += SEP_AT[i];
+    out += i < d.length ? d[i] : i < 4 ? '2026'[i] : '_';
   }
-  return result;
+  return out;
 }
-function displayToISO(digits) {
-  if (digits.length < 12) return '';
-  const d = digits.padEnd(14, '0');
-  return d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8) + 'T' + d.slice(8, 10) + ':' + d.slice(10, 12) + ':' + d.slice(12, 14);
+function digitsToISO(d) {
+  if (d.length < 12) return '';
+  const p = d.padEnd(14, '0');
+  return `${p.slice(0, 4)}-${p.slice(4, 6)}-${p.slice(6, 8)}T${p.slice(8, 10)}:${p.slice(10, 12)}:${p.slice(12, 14)}`;
 }
 function isoToDigits(iso) {
   if (!iso) return '2026';
-  return iso.replace(/[-T: ]/g, '');
+  return iso.replace(/[-T: ]/g, '').slice(0, 14) || '2026';
 }
 function DateTimeInput({
   value,
   onChange,
   className
 }) {
-  const [digits, setDigits] = useState(() => isoToDigits(value) || '2026');
+  const [digits, setDigits] = useState(() => isoToDigits(value));
   const inputRef = useRef(null);
+  const lastProcessed = useRef('');
   useEffect(() => {
     const d = isoToDigits(value);
-    if (d !== digits) setDigits(d || '2026');
+    if (d !== digits) setDigits(d);
   }, [value]);
-  const display = digitsToDisplay(digits);
+  function pushDigit(ch) {
+    setDigits(prev => {
+      if (prev.length >= 14) return prev;
+      const next = prev.length < 4 ? '2026' : prev;
+      const result = (next + ch).slice(0, 14);
+      onChange(digitsToISO(result));
+      return result;
+    });
+  }
+  function popDigit() {
+    setDigits(prev => {
+      if (prev.length <= 4) return prev;
+      const result = prev.slice(0, -1);
+      onChange(digitsToISO(result));
+      return result;
+    });
+  }
   function handleKeyDown(e) {
     if (e.key >= '0' && e.key <= '9') {
       e.preventDefault();
-      if (digits.length >= 14) return;
-      // 년도(0~3번째)는 2026 고정 → 4번째부터 입력
-      const next = digits.length < 4 ? '2026' + e.key : digits + e.key;
-      setDigits(next.slice(0, 14));
-      onChange(displayToISO(next.slice(0, 14)));
+      lastProcessed.current = e.key;
+      pushDigit(e.key);
     } else if (e.key === 'Backspace') {
       e.preventDefault();
-      // 2026은 지우지 않음
-      if (digits.length <= 4) return;
-      const next = digits.slice(0, -1);
-      setDigits(next);
-      onChange(displayToISO(next));
+      lastProcessed.current = 'bs';
+      popDigit();
     }
   }
 
-  // iOS에서 keyDown이 안 잡히는 경우를 위해 input 이벤트도 처리
-  function handleInput(e) {
-    // 실제 value에서 숫자만 추출
-    const raw = e.target.value.replace(/\D/g, '');
-    // 년도 부분은 항상 2026
-    let next = '2026' + raw.slice(4);
-    if (raw.slice(0, 4) !== '2026') {
-      next = '2026' + raw.replace(/^2026/, '');
+  // iOS Safari는 keyDown 이벤트가 늦게 오거나 안 오는 경우가 있어
+  // beforeinput으로 보완
+  function handleBeforeInput(e) {
+    e.preventDefault();
+    const ch = e.data;
+    if (ch && ch >= '0' && ch <= '9') {
+      lastProcessed.current = ch;
+      pushDigit(ch);
     }
+  }
+
+  // onChange는 controlled input 유지용 (실제 처리는 keyDown/beforeinput)
+  function handleChange(e) {
+    // beforeinput/keyDown에서 이미 처리됨 — 여기서는 아무것도 안 함
+    // (혹시 beforeinput/keyDown 둘 다 안 잡히는 브라우저 대비 fallback)
+    const raw = e.target.value.replace(/[^0-9]/g, '');
+    if (raw.length === 0) return;
+    // 이미 처리된 경우 스킵
+    const expected = digitsToDisplay(digits).replace(/[^0-9]/g, '');
+    if (raw === expected) return;
+    // fallback: raw에서 2026 이후 부분만 추출
+    let next = raw.startsWith('2026') ? raw : '2026' + raw.replace(/^2026/, '');
     next = next.slice(0, 14);
     setDigits(next);
-    onChange(displayToISO(next));
-    // 커서를 항상 끝으로
-    setTimeout(() => {
-      if (inputRef.current) inputRef.current.setSelectionRange(9999, 9999);
-    }, 0);
+    onChange(digitsToISO(next));
   }
+  const display = digitsToDisplay(digits);
   return /*#__PURE__*/React.createElement("div", {
     className: 'dt-mask-wrap ' + (className || '')
   }, /*#__PURE__*/React.createElement("input", {
     ref: inputRef,
     type: "text",
-    inputMode: "decimal",
-    pattern: "[0-9]*",
+    inputMode: "numeric",
     className: "dt-mask-input",
     value: display,
-    onChange: handleInput,
     onKeyDown: handleKeyDown,
-    onFocus: () => setTimeout(() => inputRef.current && inputRef.current.setSelectionRange(9999, 9999), 50),
+    onBeforeInput: handleBeforeInput,
+    onChange: handleChange,
+    onFocus: () => {
+      setTimeout(() => {
+        if (inputRef.current) {
+          const len = inputRef.current.value.length;
+          inputRef.current.setSelectionRange(len, len);
+        }
+      }, 0);
+    },
     autoComplete: "off",
     autoCorrect: "off",
+    autoCapitalize: "none",
     spellCheck: false
   }));
 }
@@ -2685,16 +2726,14 @@ function calcPositionSummary(trade) {
   const totalSize = mainSize + addedSize;
   const totalMargin = totalSize / lev;
 
-  // 실손익 계산
-  // pnlPct는 이미 레버리지 적용된 비율 → 실손익 = 증거금 × (pnlPct/100)
-  // OKX 테이커 수수료 0.05% × 2회(진입+청산) = 포지션수량 × 0.001
+  // 실손익 계산: 증거금(포지션/레버리지) × (pnlPct/100) - OKX 테이커 수수료(0.05%×2)
   let realizedPnl = null;
   if (trade.pnlPct !== null && trade.pnlPct !== undefined && totalSize) {
     const lev = Number(trade.leverage) || 1;
     const margin = totalSize / lev;
     const rawPnl = margin * (trade.pnlPct / 100);
-    const fee = totalSize * 0.0005 * 2; // 테이커 0.05% × 진입+청산
-    realizedPnl = rawPnl - fee; // 수수료는 항상 손실 방향
+    const fee = totalSize * 0.0005 * 2;
+    realizedPnl = rawPnl - fee;
   }
   return {
     mainSize,
@@ -2803,6 +2842,8 @@ function TradeCard({
       setupTypes: getSetupTypes(t),
       emotions,
       stopLoss: t.stopLoss || '',
+      goodPoints: t.goodPoints || '',
+      chartPattern: t.chartPattern || '',
       extraOrders: t.extraOrders || []
     };
   }
@@ -2849,7 +2890,17 @@ function TradeCard({
     });
   }
   async function handleSaveEdit() {
-    await onUpdate(trade.id, draft);
+    const recalculated = calcPnlPct({
+      direction: draft.direction,
+      entryPrice: draft.entryPrice,
+      exitPrice: draft.exitPrice,
+      leverage: draft.leverage
+    });
+    const toSave = {
+      ...draft,
+      pnlPct: recalculated !== null ? Number(recalculated.toFixed(2)) : draft.pnlPct
+    };
+    await onUpdate(trade.id, toSave);
     setEditing(false);
   }
   function handleCancelEdit() {
@@ -2868,9 +2919,7 @@ function TradeCard({
     className: "trade-card__symbol"
   }, trade.symbol), /*#__PURE__*/React.createElement("span", {
     className: `badge ${isLong ? 'badge--long' : 'badge--short'}`
-  }, isLong ? '롱' : '숏'), trade.synced && /*#__PURE__*/React.createElement("span", {
-      className: "badge badge--synced"
-    }, "✓옮김")), /*#__PURE__*/React.createElement("div", {
+  }, isLong ? '롱' : '숏')), /*#__PURE__*/React.createElement("div", {
     className: "trade-card__pnl"
   }, /*#__PURE__*/React.createElement("span", {
     className: `pnl-pct ${pnl > 0 ? 'is-pos' : pnl < 0 ? 'is-neg' : ''}`
@@ -2905,10 +2954,17 @@ function TradeCard({
   }, "SL ", trade.stopLoss), setupTypes.map(s => /*#__PURE__*/React.createElement("span", {
     key: s,
     className: "pill"
-  }, s)), (trade.emotions && trade.emotions.length > 0 ? trade.emotions : trade.emotion ? [trade.emotion] : []).map(e => /*#__PURE__*/React.createElement("span", {
+  }, s === '차트패턴' && trade.chartPattern ? `차트패턴(${trade.chartPattern})` : s)), (trade.emotions && trade.emotions.length > 0 ? trade.emotions : trade.emotion ? [trade.emotion] : []).map(e => /*#__PURE__*/React.createElement("span", {
     key: e,
     className: "pill pill--emotion"
-  }, e)), trade.followedPlan === true && /*#__PURE__*/React.createElement("span", {
+  }, e)), trade.synced && /*#__PURE__*/React.createElement("span", {
+    className: "pill",
+    style: {
+      color: '#4a7fa5',
+      borderColor: '#2a3f55',
+      fontSize: '10px'
+    }
+  }, "✓PC옮김"), trade.followedPlan === true && /*#__PURE__*/React.createElement("span", {
     className: "pill pill--plan-ok"
   }, "계획 지킴"), trade.followedPlan === false && /*#__PURE__*/React.createElement("span", {
     className: "pill pill--plan-bad"
@@ -2958,11 +3014,65 @@ function TradeCard({
     className: "mono timecode"
   }, (row.time || '').replace('T', ' ')), row.memo && /*#__PURE__*/React.createElement("span", {
     className: "extra-order-row__memo-view"
-  }, row.memo))))), !editing && (trade.reasoning || trade.mistakeAnalysis || trade.nextPlan) && /*#__PURE__*/React.createElement("div", {
+  }, row.memo))))), !editing && (trade.reasoning || trade.mistakeAnalysis || trade.nextPlan || trade.goodPoints) && /*#__PURE__*/React.createElement("div", {
     className: "trade-card__notes"
-  }, trade.reasoning && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "근거."), " ", trade.reasoning), trade.mistakeAnalysis && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "잘못된 점."), " ", trade.mistakeAnalysis), trade.nextPlan && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "다음 계획."), " ", trade.nextPlan)), editing && /*#__PURE__*/React.createElement("div", {
+  }, trade.reasoning && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "근거."), " ", trade.reasoning), trade.mistakeAnalysis && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "잘못된 점."), " ", trade.mistakeAnalysis), trade.nextPlan && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "다음 계획."), " ", trade.nextPlan), trade.goodPoints && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: 'var(--long)'
+    }
+  }, "잘한 점."), " ", trade.goodPoints)), editing && /*#__PURE__*/React.createElement("div", {
     className: "trade-card__edit"
   }, /*#__PURE__*/React.createElement("div", {
+    className: "field field--full"
+  }, /*#__PURE__*/React.createElement("span", null, "거래 정보 수정"), /*#__PURE__*/React.createElement("div", {
+    className: "edit-core-grid"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "edit-core-field"
+  }, /*#__PURE__*/React.createElement("span", null, "종목"), /*#__PURE__*/React.createElement("input", {
+    value: draft.symbol,
+    onChange: e => setDraftField('symbol', e.target.value.toUpperCase())
+  })), /*#__PURE__*/React.createElement("label", {
+    className: "edit-core-field"
+  }, /*#__PURE__*/React.createElement("span", null, "방향"), /*#__PURE__*/React.createElement("select", {
+    value: draft.direction,
+    onChange: e => setDraftField('direction', e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "long"
+  }, "롱"), /*#__PURE__*/React.createElement("option", {
+    value: "short"
+  }, "숏"))), /*#__PURE__*/React.createElement("label", {
+    className: "edit-core-field"
+  }, /*#__PURE__*/React.createElement("span", null, "진입가"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    step: "any",
+    value: draft.entryPrice,
+    onChange: e => setDraftField('entryPrice', e.target.value)
+  })), /*#__PURE__*/React.createElement("label", {
+    className: "edit-core-field"
+  }, /*#__PURE__*/React.createElement("span", null, "청산가"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    step: "any",
+    value: draft.exitPrice,
+    onChange: e => setDraftField('exitPrice', e.target.value)
+  })), /*#__PURE__*/React.createElement("label", {
+    className: "edit-core-field"
+  }, /*#__PURE__*/React.createElement("span", null, "수량(USDT)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    step: "any",
+    value: draft.positionSize || '',
+    onChange: e => setDraftField('positionSize', e.target.value)
+  })), /*#__PURE__*/React.createElement("label", {
+    className: "edit-core-field"
+  }, /*#__PURE__*/React.createElement("span", null, "레버리지"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    step: "any",
+    min: "1",
+    value: draft.leverage || '',
+    onChange: e => setDraftField('leverage', e.target.value),
+    placeholder: "1"
+  }))), /*#__PURE__*/React.createElement("p", {
+    className: "edit-core-hint"
+  }, "손익률(%)은 진입가/청산가/레버리지로 자동 재계산돼요")), /*#__PURE__*/React.createElement("div", {
     className: "field field--full"
   }, /*#__PURE__*/React.createElement("span", null, "스탑로스"), /*#__PURE__*/React.createElement("div", {
     className: "stoploss-toggle"
@@ -2978,6 +3088,14 @@ function TradeCard({
     selected: draft.setupTypes,
     onToggle: toggleSetup,
     multi: true
+  }), draft.setupTypes.includes('차트패턴') && /*#__PURE__*/React.createElement("input", {
+    className: "chart-pattern-input",
+    value: draft.chartPattern || '',
+    onChange: e => setDraftField('chartPattern', e.target.value),
+    placeholder: "예: 헤드앤숄더, 이중천장, 삼각수렴…",
+    style: {
+      marginTop: '8px'
+    }
   })), /*#__PURE__*/React.createElement("div", {
     className: "field field--full"
   }, /*#__PURE__*/React.createElement("span", null, "진입 당시 감정 ", /*#__PURE__*/React.createElement("small", null, "여러 개 선택 가능")), /*#__PURE__*/React.createElement(TagGroup, {
@@ -3029,6 +3147,13 @@ function TradeCard({
     value: draft.nextPlan || '',
     onChange: e => setDraftField('nextPlan', e.target.value),
     placeholder: "같은 상황에서 다르게 할 행동…"
+  })), /*#__PURE__*/React.createElement("label", {
+    className: "field field--full"
+  }, /*#__PURE__*/React.createElement("span", null, "잘한 점 ", /*#__PURE__*/React.createElement("small", null, "손절이라도 잘한 게 있다면")), /*#__PURE__*/React.createElement("textarea", {
+    rows: 2,
+    value: draft.goodPoints || '',
+    onChange: e => setDraftField('goodPoints', e.target.value),
+    placeholder: "계획대로 손절을 지켰다, 진입 근거가 명확했다…"
   })), /*#__PURE__*/React.createElement("div", {
     className: "trade-card__edit-actions"
   }, /*#__PURE__*/React.createElement("button", {
@@ -3321,8 +3446,8 @@ function StatsView({
   }));
 }
 
-
 // App.jsx
+
 const MAIN_TABS = [{
   key: 'entry',
   label: '입력'
@@ -3332,19 +3457,218 @@ const MAIN_TABS = [{
 }, {
   key: 'stats',
   label: '통계'
+}, {
+  key: 'tips',
+  label: '팁 노트'
 }];
+
+// ===== 팁 노트 컴포넌트 =====
+function TipForm({
+  onSave,
+  onCancel,
+  initial
+}) {
+  const [symbol, setSymbol] = useState(initial?.symbol || '');
+  const [note, setNote] = useState(initial?.note || '');
+  const [source, setSource] = useState(initial?.source || '');
+  function handleSubmit() {
+    if (!note.trim()) {
+      alert('내용을 입력해 주세요.');
+      return;
+    }
+    onSave({
+      symbol: symbol.toUpperCase(),
+      note,
+      source
+    });
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "tip-form"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "field field--full"
+  }, /*#__PURE__*/React.createElement("span", null, "종목 ", /*#__PURE__*/React.createElement("small", null, "선택사항")), /*#__PURE__*/React.createElement("input", {
+    value: symbol,
+    onChange: e => setSymbol(e.target.value.toUpperCase()),
+    placeholder: "BTC"
+  })), /*#__PURE__*/React.createElement("label", {
+    className: "field field--full"
+  }, /*#__PURE__*/React.createElement("span", null, "내용"), /*#__PURE__*/React.createElement("textarea", {
+    rows: 4,
+    value: note,
+    onChange: e => setNote(e.target.value),
+    placeholder: "기억해 둘 팁, 패턴, 교훈…"
+  })), /*#__PURE__*/React.createElement("label", {
+    className: "field field--full"
+  }, /*#__PURE__*/React.createElement("span", null, "출처 ", /*#__PURE__*/React.createElement("small", null, "선택사항")), /*#__PURE__*/React.createElement("input", {
+    value: source,
+    onChange: e => setSource(e.target.value),
+    placeholder: "트위터, 유튜브, 본인 경험…"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: '10px',
+      marginTop: '8px'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn--primary",
+    onClick: handleSubmit,
+    style: {
+      flex: 1
+    }
+  }, "저장"), onCancel && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn--ghost",
+    onClick: onCancel
+  }, "취소")));
+}
+function TipsView({
+  tips,
+  onAdd,
+  onEdit,
+  onDelete
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [editingTip, setEditingTip] = useState(null);
+  function handleSave(data) {
+    if (editingTip) {
+      onEdit(editingTip.id, data);
+      setEditingTip(null);
+    } else {
+      onAdd(data);
+      setShowForm(false);
+    }
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "tips-view"
+  }, !showForm && !editingTip && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn--primary",
+    style: {
+      width: '100%',
+      marginBottom: '14px'
+    },
+    onClick: () => setShowForm(true)
+  }, "+ 팁 추가"), showForm && /*#__PURE__*/React.createElement(TipForm, {
+    onSave: handleSave,
+    onCancel: () => setShowForm(false)
+  }), tips.length === 0 && !showForm && /*#__PURE__*/React.createElement("div", {
+    className: "empty-state"
+  }, "팁 노트가 없어요. 위 버튼으로 추가해 보세요."), tips.map(tip => /*#__PURE__*/React.createElement("div", {
+    key: tip.id,
+    className: "tip-card"
+  }, editingTip?.id === tip.id ? /*#__PURE__*/React.createElement(TipForm, {
+    initial: tip,
+    onSave: handleSave,
+    onCancel: () => setEditingTip(null)
+  }) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "tip-card__top"
+  }, tip.symbol && /*#__PURE__*/React.createElement("span", {
+    className: "tip-card__symbol"
+  }, tip.symbol), tip.source && /*#__PURE__*/React.createElement("span", {
+    className: "tip-card__source"
+  }, tip.source)), /*#__PURE__*/React.createElement("p", {
+    className: "tip-card__note"
+  }, tip.note), /*#__PURE__*/React.createElement("div", {
+    className: "tip-card__actions"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "link-btn",
+    onClick: () => setEditingTip(tip)
+  }, "수정"), /*#__PURE__*/React.createElement("button", {
+    className: "link-btn link-btn--danger",
+    onClick: () => onDelete(tip.id)
+  }, "삭제"))))));
+}
+
+// ===== 바텀시트 =====
+function ExportSheet({
+  onClose,
+  onSelect
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    onClick: onClose,
+    style: {
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,0.5)',
+      zIndex: 1000,
+      display: 'flex',
+      alignItems: 'flex-end'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      background: '#1a1e2a',
+      width: '100%',
+      borderRadius: '16px 16px 0 0',
+      paddingBottom: 'calc(16px + env(safe-area-inset-bottom))'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      color: '#8b92a3',
+      fontSize: '12px',
+      padding: '16px 20px',
+      borderBottom: '1px solid #1f2430'
+    }
+  }, "내보낼 범위를 선택하세요"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onSelect(true),
+    style: {
+      display: 'block',
+      width: '100%',
+      padding: '18px 20px',
+      background: 'none',
+      border: 'none',
+      borderBottom: '1px solid #1f2430',
+      color: '#f0b429',
+      fontSize: '17px',
+      fontWeight: '600',
+      textAlign: 'center'
+    }
+  }, "안 옮긴 것만"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onSelect(false),
+    style: {
+      display: 'block',
+      width: '100%',
+      padding: '18px 20px',
+      background: 'none',
+      border: 'none',
+      borderBottom: '1px solid #1f2430',
+      color: '#e2e8f0',
+      fontSize: '17px',
+      textAlign: 'center'
+    }
+  }, "전체"), /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    style: {
+      display: 'block',
+      width: '100%',
+      padding: '18px 20px',
+      background: 'none',
+      border: 'none',
+      color: '#8b92a3',
+      fontSize: '17px',
+      textAlign: 'center'
+    }
+  }, "취소")));
+}
+
+// ===== 메인 앱 =====
 function App() {
   const [tab, setTab] = useState('entry');
   const [trades, setTrades] = useState([]);
+  const [tips, setTips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [showExportSheet, setShowExportSheet] = useState(false);
   const importFooterRef = useRef(null);
   const loadTrades = useCallback(() => {
-    window.TradeStore.getAll().then(data => setTrades(data)).catch(() => {}).finally(() => setLoading(false));
+    window.TradeStore.getAll().then(setTrades).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+  const loadTips = useCallback(() => {
+    window.TipStore.getAll().then(setTips).catch(() => {});
   }, []);
   useEffect(() => {
     loadTrades();
-  }, [loadTrades]);
+    loadTips();
+  }, [loadTrades, loadTips]);
   function handleBulkSaved() {
     loadTrades();
     setTab('trades');
@@ -3358,18 +3682,35 @@ function App() {
     await window.TradeStore.remove(id);
     loadTrades();
   }
-
-  // 내보내기 — 전체 or 안 옮긴 것만 선택
-  async function handleExport() {
-    const onlyUnsynced = confirm('PC로 아직 안 옮긴 것만 내보낼까요?\n\n확인 = 안 옮긴 것만\n취소 = 전체');
+  async function handleAddTip(data) {
+    await window.TipStore.add(data);
+    loadTips();
+  }
+  async function handleEditTip(id, data) {
+    await window.TipStore.update(id, data);
+    loadTips();
+  }
+  async function handleDeleteTip(id) {
+    if (!confirm('이 팁을 삭제할까요?')) return;
+    await window.TipStore.remove(id);
+    loadTips();
+  }
+  async function doExport(onlyUnsynced) {
+    setShowExportSheet(false);
     const json = await window.TradeStore.exportJSON(onlyUnsynced);
     if (!json) {
-      alert(onlyUnsynced ? '아직 PC로 안 옮긴 거래가 없어요.' : '내보낼 거래가 없어요.');
+      alert(onlyUnsynced ? '안 옮긴 거래가 없어요.' : '거래가 없어요.');
       return;
     }
     const parsed = JSON.parse(json);
-    const count = parsed.trades ? parsed.trades.length : 0;
-    const blob = new Blob([json], {
+    // 팁도 포함해서 내보내기
+    const tipsData = await window.TipStore.getAll();
+    const combined = {
+      ...parsed,
+      tips: tipsData
+    };
+    const count = (parsed.trades || []).length;
+    const blob = new Blob([JSON.stringify(combined, null, 2)], {
       type: 'application/json'
     });
     const url = URL.createObjectURL(blob);
@@ -3380,15 +3721,13 @@ function App() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-
-    // 내보낸 항목 synced=true 처리
     if (onlyUnsynced) {
-      const ids = parsed.trades.map(t => t.id).filter(Boolean);
+      const ids = (parsed.trades || []).map(t => t.id).filter(Boolean);
       await window.TradeStore.markSynced(ids);
       loadTrades();
-      alert(`${count}건 내보냈어요. "옮김" 표시가 붙었습니다.`);
+      alert(count + '건 + 팁 내보냈어요.');
     } else {
-      alert(`${count}건 전체 내보냈어요.`);
+      alert(count + '건 + 팁 전체 내보냈어요.');
     }
   }
   async function handleImportFile(e) {
@@ -3396,13 +3735,32 @@ function App() {
     if (!file) return;
     try {
       const text = await file.text();
-      const result = await window.TradeStore.importJSON(text);
-      if (result.skipped > 0) {
-        alert(`${result.added}건 추가됐어요.\n(이미 있던 ${result.skipped}건은 건너뜀)`);
-      } else {
-        alert(`${result.added}건 불러왔어요.`);
+      const parsed = JSON.parse(text);
+      // 거래 가져오기
+      let tradeItems = Array.isArray(parsed) ? parsed : Array.isArray(parsed.trades) ? parsed.trades : Array.isArray(parsed.memos) ? parsed.memos.map(m => ({
+        ...m,
+        reasoning: m.note || '',
+        emotions: m.emotion ? [m.emotion] : []
+      })) : [];
+      const tradeResult = tradeItems.length > 0 ? await window.TradeStore.importJSON(JSON.stringify({
+        trades: tradeItems
+      })) : {
+        added: 0,
+        skipped: 0
+      };
+      // 팁 가져오기
+      let tipCount = 0;
+      if (Array.isArray(parsed.tips) && parsed.tips.length > 0) {
+        const tipResult = await window.TipStore.importJSON(parsed.tips);
+        tipCount = tipResult.added;
       }
+      const msg = [];
+      if (tradeResult.added > 0) msg.push('거래 ' + tradeResult.added + '건');
+      if (tipCount > 0) msg.push('팁 ' + tipCount + '건');
+      if (tradeResult.skipped > 0) msg.push('(중복 ' + tradeResult.skipped + '건 건너뜀)');
+      alert(msg.length > 0 ? msg.join(', ') + ' 추가됐어요.' : '새로 추가된 항목이 없어요.');
       loadTrades();
+      loadTips();
     } catch (err) {
       alert('불러오기 실패: ' + err.message);
     } finally {
@@ -3412,12 +3770,15 @@ function App() {
   const unsyncedCount = useMemo(() => trades.filter(t => !t.synced).length, [trades]);
   const filteredTrades = trades.filter(t => {
     if (!search.trim()) return true;
-    const hay = (t.symbol + ' ' + (t.reasoning || '') + ' ' + (t.mistakeAnalysis || '') + ' ' + (t.nextPlan || '')).toLowerCase();
+    const hay = (t.symbol + ' ' + (t.reasoning || '') + ' ' + (t.mistakeAnalysis || '')).toLowerCase();
     return hay.includes(search.toLowerCase());
   });
   return /*#__PURE__*/React.createElement("div", {
     className: "app-shell"
-  }, /*#__PURE__*/React.createElement("header", {
+  }, showExportSheet && /*#__PURE__*/React.createElement(ExportSheet, {
+    onClose: () => setShowExportSheet(false),
+    onSelect: doExport
+  }), /*#__PURE__*/React.createElement("header", {
     className: "app-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "app-header__title"
@@ -3452,7 +3813,7 @@ function App() {
     className: "empty-state"
   }, "불러오는 중…") : filteredTrades.length === 0 ? /*#__PURE__*/React.createElement("div", {
     className: "empty-state"
-  }, "기록이 없어요. 입력 탭에서 거래를 입력해 보세요.") : /*#__PURE__*/React.createElement("div", {
+  }, "기록이 없어요.") : /*#__PURE__*/React.createElement("div", {
     className: "trade-list"
   }, filteredTrades.map(trade => /*#__PURE__*/React.createElement(TradeCard, {
     key: trade.id,
@@ -3461,11 +3822,16 @@ function App() {
     onDelete: handleDeleteTrade
   })))), tab === 'stats' && /*#__PURE__*/React.createElement(StatsView, {
     trades: trades
+  }), tab === 'tips' && /*#__PURE__*/React.createElement(TipsView, {
+    tips: tips,
+    onAdd: handleAddTip,
+    onEdit: handleEditTip,
+    onDelete: handleDeleteTip
   })), /*#__PURE__*/React.createElement("footer", {
     className: "app-footer"
   }, /*#__PURE__*/React.createElement("button", {
     className: "link-btn sync-btn",
-    onClick: handleExport
+    onClick: () => setShowExportSheet(true)
   }, "PC로 내보내기", unsyncedCount > 0 && /*#__PURE__*/React.createElement("span", {
     className: "sync-badge"
   }, unsyncedCount)), /*#__PURE__*/React.createElement("button", {
@@ -3481,12 +3847,15 @@ function App() {
     onChange: handleImportFile
   })));
 }
+
+
 const _root = ReactDOM.createRoot(document.getElementById("root"));
+
 _root.render(/*#__PURE__*/React.createElement(App, null));</script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./service-worker.js?v=6').catch(function (error) {
+    navigator.serviceWorker.register('./service-worker.js?v=7').catch(function (error) {
       console.warn('Service worker registration failed:', error);
     });
   });
