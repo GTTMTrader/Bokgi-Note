@@ -1,22 +1,34 @@
-# 복기노트 iOS PWA v7
+# 복기노트 iOS PWA v8
 
-`복기노트-iOS(3).html` 기준으로 만든 GitHub Pages 업로드용 패키지입니다.
+`복기노트-iOS.html` 기준으로 만든 GitHub Pages 업데이트 패키지입니다.
+**기존 저장소의 파일명과 동일하게 맞췄으니, 그대로 덮어써도 됩니다.**
 
-업로드할 파일:
-- index.html
-- manifest.webmanifest
-- service-worker.js
-- apple-touch-icon.png
-- icon-192.png
-- icon-512.png
-- README.md
+## 안에 든 파일
 
-업로드:
-1. ZIP 압축 풀기
-2. GitHub `bokgi-note` 저장소
-3. Add file → Upload files
-4. 압축 푼 내부 파일 전부 업로드
-5. 같은 이름 파일은 덮어쓰기
-6. Commit changes
-7. `https://gttmtrader.github.io/bokgi-note/?v=7` 접속
-8. 기존 홈화면 아이콘 삭제 후 다시 홈 화면에 추가
+```
+index.html              앱 본체 (이번에 수정된 기능 전부 포함)
+manifest.webmanifest    PWA 설정
+apple-touch-icon.png    아이폰 홈 화면 아이콘
+icon-192.png            PWA 아이콘
+icon-512.png            PWA 아이콘
+service-worker.js       오프라인 캐싱 (캐시 버전 v7 → v8로 올림)
+README.md               이 파일
+```
+
+## 적용 방법 — 데이터는 그대로 유지됩니다
+
+기존에 쓰시던 GitHub 저장소, 같은 파일명이면 **덮어쓰기만 하면 끝**이에요.
+데이터(거래 기록)는 이 저장소 주소(도메인)의 브라우저 저장소(IndexedDB)에 있고,
+파일 내용을 바꾸는 것과는 완전히 별개라 사라지지 않습니다.
+
+1. GitHub 저장소 페이지에서 파일 하나씩 열어서 편집(연필 아이콘) → 내용 전체 교체 → Commit
+   - 또는 로컬에 저장소를 내려받아 이 파일들로 통째로 덮어쓴 뒤 git push
+2. `manifest.webmanifest`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`는
+   내용이 거의 그대로라 안 바꿔도 되지만, 확실히 하려면 같이 덮어써도 무방합니다.
+3. 몇 분 뒤 GitHub Pages에 반영됩니다.
+
+## 캐시가 안 갱신되는 것 같으면
+
+`service-worker.js`의 캐시 버전을 v7 → v8로 올려뒀어요.
+이것 덕분에 폰이 예전 파일을 계속 붙잡고 있던 경우에도 새 버전으로 강제 갱신됩니다.
+그래도 안 바뀌면: 아이폰 설정 → Safari → 방문 기록 및 웹 사이트 데이터 지우기 (최후 수단, 이 경우 데이터도 같이 지워지니 먼저 "PC로 내보내기"로 백업 권장).

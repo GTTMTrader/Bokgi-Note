@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bokgi-note-v7';
+const CACHE_NAME = 'bokgi-note-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -30,6 +30,8 @@ self.addEventListener('fetch', event => {
       const clone = response.clone();
       caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone)).catch(() => undefined);
       return response;
-    }).catch(() => caches.match(event.request))
+    }).catch(() =>
+      caches.match(event.request)
+    )
   );
 });
