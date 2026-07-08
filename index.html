@@ -2295,6 +2295,42 @@ function TagGroup({
   }));
 }
 
+// AutoTextarea.jsx
+
+// 입력한 내용만큼 높이가 자동으로 늘어나는 textarea (내부 스크롤 없음)
+function AutoTextarea({
+  value,
+  onChange,
+  minRows = 2,
+  placeholder,
+  className
+}) {
+  const ref = useRef(null);
+  function resize() {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }
+  useEffect(() => {
+    resize();
+  }, [value]);
+  return /*#__PURE__*/React.createElement("textarea", {
+    ref: ref,
+    rows: minRows,
+    value: value || '',
+    onChange: onChange,
+    onInput: resize,
+    placeholder: placeholder,
+    className: className,
+    style: {
+      overflow: 'hidden',
+      resize: 'none',
+      boxSizing: 'border-box'
+    }
+  });
+}
+
 // TradeChart.jsx
 
 const LINE_COLORS = {
@@ -3141,30 +3177,26 @@ function TradeCard({
     leverage: draft.leverage
   }), /*#__PURE__*/React.createElement("label", {
     className: "field field--full"
-  }, /*#__PURE__*/React.createElement("span", null, "진입 근거 ", /*#__PURE__*/React.createElement("small", null, "그때 왜 들어갔나")), /*#__PURE__*/React.createElement("textarea", {
-    rows: 2,
-    value: draft.reasoning || '',
+  }, /*#__PURE__*/React.createElement("span", null, "진입 근거 ", /*#__PURE__*/React.createElement("small", null, "그때 왜 들어갔나")), /*#__PURE__*/React.createElement(AutoTextarea, {
+    value: draft.reasoning,
     onChange: e => setDraftField('reasoning', e.target.value),
     placeholder: "진입을 결정한 이유, 시나리오, 근거…"
   })), /*#__PURE__*/React.createElement("label", {
     className: "field field--full"
-  }, /*#__PURE__*/React.createElement("span", null, "무엇이 잘못됐나"), /*#__PURE__*/React.createElement("textarea", {
-    rows: 2,
-    value: draft.mistakeAnalysis || '',
+  }, /*#__PURE__*/React.createElement("span", null, "무엇이 잘못됐나"), /*#__PURE__*/React.createElement(AutoTextarea, {
+    value: draft.mistakeAnalysis,
     onChange: e => setDraftField('mistakeAnalysis', e.target.value),
     placeholder: "진입/청산/리스크관리에서 아쉬웠던 점…"
   })), /*#__PURE__*/React.createElement("label", {
     className: "field field--full"
-  }, /*#__PURE__*/React.createElement("span", null, "다음엔 어떻게"), /*#__PURE__*/React.createElement("textarea", {
-    rows: 2,
-    value: draft.nextPlan || '',
+  }, /*#__PURE__*/React.createElement("span", null, "다음엔 어떻게"), /*#__PURE__*/React.createElement(AutoTextarea, {
+    value: draft.nextPlan,
     onChange: e => setDraftField('nextPlan', e.target.value),
     placeholder: "같은 상황에서 다르게 할 행동…"
   })), /*#__PURE__*/React.createElement("label", {
     className: "field field--full"
-  }, /*#__PURE__*/React.createElement("span", null, "잘한 점 ", /*#__PURE__*/React.createElement("small", null, "손절이라도 잘한 게 있다면")), /*#__PURE__*/React.createElement("textarea", {
-    rows: 2,
-    value: draft.goodPoints || '',
+  }, /*#__PURE__*/React.createElement("span", null, "잘한 점 ", /*#__PURE__*/React.createElement("small", null, "손절이라도 잘한 게 있다면")), /*#__PURE__*/React.createElement(AutoTextarea, {
+    value: draft.goodPoints,
     onChange: e => setDraftField('goodPoints', e.target.value),
     placeholder: "계획대로 손절을 지켰다, 진입 근거가 명확했다…"
   })), /*#__PURE__*/React.createElement("div", {
@@ -3505,8 +3537,8 @@ function TipForm({
     placeholder: "BTC"
   })), /*#__PURE__*/React.createElement("label", {
     className: "field field--full"
-  }, /*#__PURE__*/React.createElement("span", null, "내용"), /*#__PURE__*/React.createElement("textarea", {
-    rows: 4,
+  }, /*#__PURE__*/React.createElement("span", null, "내용"), /*#__PURE__*/React.createElement(AutoTextarea, {
+    minRows: 4,
     value: note,
     onChange: e => setNote(e.target.value),
     placeholder: "기억해 둘 팁, 패턴, 교훈…"
