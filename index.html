@@ -2667,6 +2667,7 @@ function BulkEntryTable({
       value: "short"
     }, "숏")), /*#__PURE__*/React.createElement("input", {
       type: "number",
+      inputMode: "decimal",
       step: "any",
       className: "bulk-input",
       value: row.entryPrice,
@@ -2674,6 +2675,7 @@ function BulkEntryTable({
       placeholder: "0"
     }), /*#__PURE__*/React.createElement("input", {
       type: "number",
+      inputMode: "decimal",
       step: "any",
       className: "bulk-input",
       value: row.exitPrice,
@@ -2681,6 +2683,7 @@ function BulkEntryTable({
       placeholder: "0"
     }), /*#__PURE__*/React.createElement("input", {
       type: "number",
+      inputMode: "decimal",
       step: "any",
       className: "bulk-input",
       value: row.positionSize,
@@ -2688,6 +2691,7 @@ function BulkEntryTable({
       placeholder: "35000"
     }), /*#__PURE__*/React.createElement("input", {
       type: "number",
+      inputMode: "decimal",
       step: "any",
       min: "1",
       className: "bulk-input bulk-input--narrow",
@@ -2826,6 +2830,7 @@ function ExtraOrders({
     value: t
   }, t))), /*#__PURE__*/React.createElement("input", {
     type: "number",
+    inputMode: "decimal",
     step: "any",
     className: "extra-order-row__price",
     value: row.price,
@@ -2833,6 +2838,7 @@ function ExtraOrders({
     placeholder: "진입가"
   }), /*#__PURE__*/React.createElement("input", {
     type: "number",
+    inputMode: "decimal",
     step: "any",
     className: "extra-order-row__price",
     value: row.exitPrice || '',
@@ -2840,6 +2846,7 @@ function ExtraOrders({
     placeholder: "청산가"
   }), /*#__PURE__*/React.createElement("input", {
     type: "number",
+    inputMode: "decimal",
     step: "any",
     className: "extra-order-row__size",
     value: row.size || '',
