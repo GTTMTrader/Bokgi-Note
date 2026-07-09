@@ -2145,7 +2145,6 @@ function buildWinRateSeries(trades, mode) {
 // DateTimeInput.jsx
 
 // 포맷: 2026-MM-DD HH:MM:SS
-// digits = 순수 숫자 문자열 (최대 14자리, 앞 4자리는 2026 고정)
 const SEP_AT = {
   4: '-',
   6: '-',
@@ -2162,8 +2161,7 @@ function digitsToDisplay(d) {
   return out;
 }
 
-// 완성된 자리수(14자리)만 실제 ISO로 변환. 그 외엔 빈 문자열.
-// (패딩으로 초를 임의로 채우지 않음 — 그게 재귀 덮어쓰기의 원인이었음)
+// 14자리(초까지) 완전히 채워졌을 때만 실제 값 인정
 function digitsToISO(d) {
   if (d.length < 14) return '';
   return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${d.slice(8, 10)}:${d.slice(10, 12)}:${d.slice(12, 14)}`;
@@ -2179,11 +2177,11 @@ function DateTimeInput({
 }) {
   const [digits, setDigits] = useState(() => isoToDigits(value));
   const inputRef = useRef(null);
-  const lastEmittedValue = useRef(value); // 내가 마지막으로 onChange에 내보낸 값
-
+  const lastEmittedValue = useRef(value);
+  const digitsRef = useRef(digits);
+  digitsRef.current = digits;
   useEffect(() => {
-    // 부모로부터 내려온 value가, 방금 내가 emit한 값과 같다면(내 입력의 메아리)
-    // digits를 다시 계산하지 않는다. 진짜 외부(다른 행 선택 등)에서 바뀐 경우만 반영.
+    // 외부(다른 행 선택 등)에서 진짜로 바뀐 경우만 반영. 내가 emit한 메아리는 무시.
     if (value === lastEmittedValue.current) return;
     lastEmittedValue.current = value;
     setDigits(isoToDigits(value));
@@ -2210,37 +2208,29 @@ function DateTimeInput({
       return result;
     });
   }
-  function handleKeyDown(e) {
-    if (e.key >= '0' && e.key <= '9') {
-      e.preventDefault();
-      pushDigit(e.key);
-    } else if (e.key === 'Backspace') {
-      e.preventDefault();
-      popDigit();
-    }
-  }
 
-  // iOS Safari는 keyDown 이벤트가 늦게 오거나 안 오는 경우가 있어 beforeinput으로 보완
-  function handleBeforeInput(e) {
-    e.preventDefault();
-    const data = e.data;
-    const inputType = e.inputType || '';
-    if (data && data >= '0' && data <= '9') {
-      pushDigit(data);
-    } else if (inputType.indexOf('delete') === 0) {
-      popDigit();
+  // 핵심: onKeyDown/onBeforeInput의 preventDefault는 iOS Safari에서 신뢰할 수 없다.
+  // 대신 브라우저가 실제로 그려낸 값(newVal)과 우리가 마지막으로 세팅한 값(oldVal)을
+  // 커서 위치 기준으로 비교해서, 무엇이 추가/삭제됐는지 직접 계산한다.
+  function handleInput(e) {
+    const el = e.target;
+    const newVal = el.value;
+    const oldVal = digitsToDisplay(digitsRef.current);
+    const selEnd = el.selectionEnd != null ? el.selectionEnd : newVal.length;
+    if (newVal.length > oldVal.length) {
+      const addedCount = newVal.length - oldVal.length;
+      const start = Math.max(0, selEnd - addedCount);
+      const addedChars = newVal.slice(start, selEnd);
+      for (let i = 0; i < addedChars.length; i++) {
+        const ch = addedChars[i];
+        if (ch >= '0' && ch <= '9') pushDigit(ch);
+      }
+    } else if (newVal.length < oldVal.length) {
+      const removedCount = oldVal.length - newVal.length;
+      for (let i = 0; i < removedCount; i++) popDigit();
     }
-  }
-
-  // controlled input 유지용 fallback (keyDown/beforeinput 둘 다 안 잡힌 경우 대비)
-  function handleChange(e) {
-    const raw = e.target.value.replace(/[^0-9]/g, '');
-    const expected = digitsToDisplay(digits).replace(/[^0-9]/g, '');
-    if (raw === expected || raw.length === 0) return;
-    let next = raw.startsWith('2026') ? raw : '2026' + raw.replace(/^2026/, '');
-    next = next.slice(0, 14);
-    setDigits(next);
-    emit(next);
+    // 길이가 같으면(구분자 자리를 덮어쓰려 한 경우 등) 아무것도 안 함.
+    // 다음 렌더에서 React가 value={display}로 항상 올바른 포맷을 되돌려놓는다.
   }
   const display = digitsToDisplay(digits);
   return /*#__PURE__*/React.createElement("div", {
@@ -2251,9 +2241,7 @@ function DateTimeInput({
     inputMode: "numeric",
     className: "dt-mask-input",
     value: display,
-    onKeyDown: handleKeyDown,
-    onBeforeInput: handleBeforeInput,
-    onChange: handleChange,
+    onChange: handleInput,
     onFocus: () => {
       setTimeout(() => {
         if (inputRef.current) {
