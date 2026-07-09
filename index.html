@@ -2666,33 +2666,33 @@ function BulkEntryTable({
     }, "롱"), /*#__PURE__*/React.createElement("option", {
       value: "short"
     }, "숏")), /*#__PURE__*/React.createElement("input", {
-      type: "number",
+      type: "text",
       inputMode: "decimal",
-      step: "any",
+      pattern: "[0-9]*\\.?[0-9]*",
       className: "bulk-input",
       value: row.entryPrice,
       onChange: e => updateRow(row._rowId, 'entryPrice', e.target.value),
       placeholder: "0"
     }), /*#__PURE__*/React.createElement("input", {
-      type: "number",
+      type: "text",
       inputMode: "decimal",
-      step: "any",
+      pattern: "[0-9]*\\.?[0-9]*",
       className: "bulk-input",
       value: row.exitPrice,
       onChange: e => updateRow(row._rowId, 'exitPrice', e.target.value),
       placeholder: "0"
     }), /*#__PURE__*/React.createElement("input", {
-      type: "number",
+      type: "text",
       inputMode: "decimal",
-      step: "any",
+      pattern: "[0-9]*\\.?[0-9]*",
       className: "bulk-input",
       value: row.positionSize,
       onChange: e => updateRow(row._rowId, 'positionSize', e.target.value),
       placeholder: "35000"
     }), /*#__PURE__*/React.createElement("input", {
-      type: "number",
+      type: "text",
       inputMode: "decimal",
-      step: "any",
+      pattern: "[0-9]*\\.?[0-9]*",
       min: "1",
       className: "bulk-input bulk-input--narrow",
       value: row.leverage,
@@ -2829,25 +2829,25 @@ function ExtraOrders({
     key: t,
     value: t
   }, t))), /*#__PURE__*/React.createElement("input", {
-    type: "number",
+    type: "text",
     inputMode: "decimal",
-    step: "any",
+    pattern: "[0-9]*\\.?[0-9]*",
     className: "extra-order-row__price",
     value: row.price,
     onChange: e => updateRow(row._id, 'price', e.target.value),
     placeholder: "진입가"
   }), /*#__PURE__*/React.createElement("input", {
-    type: "number",
+    type: "text",
     inputMode: "decimal",
-    step: "any",
+    pattern: "[0-9]*\\.?[0-9]*",
     className: "extra-order-row__price",
     value: row.exitPrice || '',
     onChange: e => updateRow(row._id, 'exitPrice', e.target.value),
     placeholder: "청산가"
   }), /*#__PURE__*/React.createElement("input", {
-    type: "number",
+    type: "text",
     inputMode: "decimal",
-    step: "any",
+    pattern: "[0-9]*\\.?[0-9]*",
     className: "extra-order-row__size",
     value: row.size || '',
     onChange: e => updateRow(row._id, 'size', e.target.value),
@@ -3087,34 +3087,33 @@ function TradeCard({
   }, "숏"))), /*#__PURE__*/React.createElement("label", {
     className: "edit-core-field"
   }, /*#__PURE__*/React.createElement("span", null, "진입가"), /*#__PURE__*/React.createElement("input", {
-    type: "number",
+    type: "text",
     inputMode: "decimal",
-    step: "any",
+    pattern: "[0-9]*\\.?[0-9]*",
     value: draft.entryPrice,
     onChange: e => setDraftField('entryPrice', e.target.value)
   })), /*#__PURE__*/React.createElement("label", {
     className: "edit-core-field"
   }, /*#__PURE__*/React.createElement("span", null, "청산가"), /*#__PURE__*/React.createElement("input", {
-    type: "number",
+    type: "text",
     inputMode: "decimal",
-    step: "any",
+    pattern: "[0-9]*\\.?[0-9]*",
     value: draft.exitPrice,
     onChange: e => setDraftField('exitPrice', e.target.value)
   })), /*#__PURE__*/React.createElement("label", {
     className: "edit-core-field"
   }, /*#__PURE__*/React.createElement("span", null, "수량(USDT)"), /*#__PURE__*/React.createElement("input", {
-    type: "number",
+    type: "text",
     inputMode: "decimal",
-    step: "any",
+    pattern: "[0-9]*\\.?[0-9]*",
     value: draft.positionSize || '',
     onChange: e => setDraftField('positionSize', e.target.value)
   })), /*#__PURE__*/React.createElement("label", {
     className: "edit-core-field"
   }, /*#__PURE__*/React.createElement("span", null, "레버리지"), /*#__PURE__*/React.createElement("input", {
-    type: "number",
+    type: "text",
     inputMode: "decimal",
-    step: "any",
-    min: "1",
+    pattern: "[0-9]*\\.?[0-9]*",
     value: draft.leverage || '',
     onChange: e => setDraftField('leverage', e.target.value),
     placeholder: "1"
