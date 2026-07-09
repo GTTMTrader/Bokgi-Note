@@ -2146,7 +2146,6 @@ function buildWinRateSeries(trades, mode) {
 
 // 포맷: 2026-MM-DD HH:MM:SS
 // digits = 순수 숫자 문자열 (최대 14자리, 앞 4자리는 2026 고정)
-// SEP_POS: digits 인덱스 기준 구분자 삽입 위치
 const SEP_AT = {
   4: '-',
   6: '-',
@@ -2155,7 +2154,6 @@ const SEP_AT = {
   12: ':'
 };
 function digitsToDisplay(d) {
-  // d = "20260626234258" → "2026-06-26 23:42:58"
   let out = '';
   for (let i = 0; i < 14; i++) {
     if (SEP_AT[i]) out += SEP_AT[i];
@@ -2163,10 +2161,12 @@ function digitsToDisplay(d) {
   }
   return out;
 }
+
+// 완성된 자리수(14자리)만 실제 ISO로 변환. 그 외엔 빈 문자열.
+// (패딩으로 초를 임의로 채우지 않음 — 그게 재귀 덮어쓰기의 원인이었음)
 function digitsToISO(d) {
-  if (d.length < 12) return '';
-  const p = d.padEnd(14, '0');
-  return `${p.slice(0, 4)}-${p.slice(4, 6)}-${p.slice(6, 8)}T${p.slice(8, 10)}:${p.slice(10, 12)}:${p.slice(12, 14)}`;
+  if (d.length < 14) return '';
+  return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${d.slice(8, 10)}:${d.slice(10, 12)}:${d.slice(12, 14)}`;
 }
 function isoToDigits(iso) {
   if (!iso) return '2026';
@@ -2179,17 +2179,26 @@ function DateTimeInput({
 }) {
   const [digits, setDigits] = useState(() => isoToDigits(value));
   const inputRef = useRef(null);
-  const lastProcessed = useRef('');
+  const lastEmittedValue = useRef(value); // 내가 마지막으로 onChange에 내보낸 값
+
   useEffect(() => {
-    const d = isoToDigits(value);
-    if (d !== digits) setDigits(d);
+    // 부모로부터 내려온 value가, 방금 내가 emit한 값과 같다면(내 입력의 메아리)
+    // digits를 다시 계산하지 않는다. 진짜 외부(다른 행 선택 등)에서 바뀐 경우만 반영.
+    if (value === lastEmittedValue.current) return;
+    lastEmittedValue.current = value;
+    setDigits(isoToDigits(value));
   }, [value]);
+  function emit(newDigits) {
+    const iso = digitsToISO(newDigits);
+    lastEmittedValue.current = iso;
+    onChange(iso);
+  }
   function pushDigit(ch) {
     setDigits(prev => {
       if (prev.length >= 14) return prev;
-      const next = prev.length < 4 ? '2026' : prev;
-      const result = (next + ch).slice(0, 14);
-      onChange(digitsToISO(result));
+      const base = prev.length < 4 ? '2026' : prev;
+      const result = (base + ch).slice(0, 14);
+      emit(result);
       return result;
     });
   }
@@ -2197,47 +2206,41 @@ function DateTimeInput({
     setDigits(prev => {
       if (prev.length <= 4) return prev;
       const result = prev.slice(0, -1);
-      onChange(digitsToISO(result));
+      emit(result);
       return result;
     });
   }
   function handleKeyDown(e) {
     if (e.key >= '0' && e.key <= '9') {
       e.preventDefault();
-      lastProcessed.current = e.key;
       pushDigit(e.key);
     } else if (e.key === 'Backspace') {
       e.preventDefault();
-      lastProcessed.current = 'bs';
       popDigit();
     }
   }
 
-  // iOS Safari는 keyDown 이벤트가 늦게 오거나 안 오는 경우가 있어
-  // beforeinput으로 보완
+  // iOS Safari는 keyDown 이벤트가 늦게 오거나 안 오는 경우가 있어 beforeinput으로 보완
   function handleBeforeInput(e) {
     e.preventDefault();
-    const ch = e.data;
-    if (ch && ch >= '0' && ch <= '9') {
-      lastProcessed.current = ch;
-      pushDigit(ch);
+    const data = e.data;
+    const inputType = e.inputType || '';
+    if (data && data >= '0' && data <= '9') {
+      pushDigit(data);
+    } else if (inputType.indexOf('delete') === 0) {
+      popDigit();
     }
   }
 
-  // onChange는 controlled input 유지용 (실제 처리는 keyDown/beforeinput)
+  // controlled input 유지용 fallback (keyDown/beforeinput 둘 다 안 잡힌 경우 대비)
   function handleChange(e) {
-    // beforeinput/keyDown에서 이미 처리됨 — 여기서는 아무것도 안 함
-    // (혹시 beforeinput/keyDown 둘 다 안 잡히는 브라우저 대비 fallback)
     const raw = e.target.value.replace(/[^0-9]/g, '');
-    if (raw.length === 0) return;
-    // 이미 처리된 경우 스킵
     const expected = digitsToDisplay(digits).replace(/[^0-9]/g, '');
-    if (raw === expected) return;
-    // fallback: raw에서 2026 이후 부분만 추출
+    if (raw === expected || raw.length === 0) return;
     let next = raw.startsWith('2026') ? raw : '2026' + raw.replace(/^2026/, '');
     next = next.slice(0, 14);
     setDigits(next);
-    onChange(digitsToISO(next));
+    emit(next);
   }
   const display = digitsToDisplay(digits);
   return /*#__PURE__*/React.createElement("div", {
