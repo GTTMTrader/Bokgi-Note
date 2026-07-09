@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1.0" /><title>복기노트</title><meta name="apple-mobile-web-app-capable" content="yes" /><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" /><meta name="apple-mobile-web-app-title" content="복기노트" /><meta name="mobile-web-app-capable" content="yes" /><meta name="theme-color" content="#0b0e14" /><style>:root {
+<!doctype html><html lang="ko"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1.0" /><title>복기노트</title><meta name="apple-mobile-web-app-capable" content="yes" /><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" /><meta name="apple-mobile-web-app-title" content="복기노트" /><meta name="mobile-web-app-capable" content="yes" /><meta name="theme-color" content="#0b0e14" /><link rel="manifest" href="manifest.webmanifest" /><link rel="apple-touch-icon" href="apple-touch-icon.png" /><link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" /><link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" /><style>:root {
   --bg: #0b0e14;
   --bg-elevated: #12161f;
   --bg-input: #161b26;
@@ -1220,13 +1220,8 @@ a {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.extra-order-row {
-  display: grid;
-  grid-template-columns: 90px 110px 110px 185px 1fr 28px;
-  gap: 8px;
-  align-items: center;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .extra-order-row__size {
@@ -1235,7 +1230,7 @@ a {
   border-radius: var(--radius-sm);
 }
 
-.extra-order-row--view {
+.extra-order-view-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1244,6 +1239,7 @@ a {
   color: var(--text-dim);
   max-width: 100%;
   min-width: 0;
+  padding: 4px 0;
 }
 
 .extra-order-row__type {
@@ -1301,12 +1297,6 @@ a {
   flex: 1 1 100%;
 }
 
-@media (max-width: 700px) {
-  .extra-order-row {
-    grid-template-columns: 80px 95px 170px 1fr 24px;
-  }
-}
-
 /* ===== DateTimeInput ===== */
 .dt-input {
   display: flex;
@@ -1356,7 +1346,7 @@ a {
 /* ===== 추가 주문 컬럼 헤더 ===== */
 .extra-orders__col-head {
   display: grid;
-  grid-template-columns: 90px 100px 100px 100px 60px 1fr 1fr 28px;
+  grid-template-columns: 90px 100px 100px 100px 60px 180px 140px 28px;
   gap: 8px;
   font-size: 10px;
   color: var(--text-faint);
@@ -1364,13 +1354,15 @@ a {
   letter-spacing: 0.04em;
   padding: 0 2px 4px;
   margin-top: 6px;
+  min-width: 720px;
 }
 
 .extra-order-row {
   display: grid;
-  grid-template-columns: 90px 100px 100px 100px 60px 1fr 1fr 28px;
+  grid-template-columns: 90px 100px 100px 100px 60px 180px 140px 28px;
   gap: 8px;
   align-items: center;
+  min-width: 720px;
 }
 
 .extra-order-row__leverage {
@@ -3041,7 +3033,7 @@ function TradeCard({
   }, "추가 주문 내역"), /*#__PURE__*/React.createElement("div", {
     className: "extra-orders__list"
   }, (trade.extraOrders || []).map(row => /*#__PURE__*/React.createElement("div", {
-    className: "extra-order-row extra-order-row--view",
+    className: "extra-order-view-row",
     key: row._id
   }, /*#__PURE__*/React.createElement("span", {
     className: `extra-order-row__type-badge extra-order-row__type-badge--${row.type === '물타기' || row.type === '추가매수' ? 'buy' : 'sell'}`
@@ -3198,7 +3190,7 @@ function TradeCard({
   }, /*#__PURE__*/React.createElement("span", null, "잘한 점 ", /*#__PURE__*/React.createElement("small", null, "손절이라도 잘한 게 있다면")), /*#__PURE__*/React.createElement(AutoTextarea, {
     value: draft.goodPoints,
     onChange: e => setDraftField('goodPoints', e.target.value),
-    placeholder: "계획대로 손절을 지켰다, 진입 근거가 명확했다…"
+    placeholder: ""
   })), /*#__PURE__*/React.createElement("div", {
     className: "trade-card__edit-actions"
   }, /*#__PURE__*/React.createElement("button", {
@@ -3896,11 +3888,4 @@ function App() {
 
 const _root = ReactDOM.createRoot(document.getElementById("root"));
 
-_root.render(/*#__PURE__*/React.createElement(App, null));</script><script>
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
-  });
-}
-</script>
-</body></html>
+_root.render(/*#__PURE__*/React.createElement(App, null));</script><script>if ("serviceWorker" in navigator) { window.addEventListener("load", () => { navigator.serviceWorker.register("./service-worker.js").catch(() => {}); }); }</script></body></html>
