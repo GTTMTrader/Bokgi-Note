@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bokgi-note-v8';
+const CACHE_NAME = 'bokgi-note-v10';
 const ASSETS = [
   './',
   './index.html',

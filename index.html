@@ -2022,7 +2022,7 @@ window.OkxClient = {
 
 // constants.js
 
-const SETUP_TYPES = ['돌파', '눌림목', '추세추종', '역추세', '스캘핑', '지지/저항', '매물대', '차트패턴'];
+const SETUP_TYPES = ['돌파', '눌림목', '추세추종', '역추세', '스캘핑', '지지/저항', '매물대', '차트패턴', '수면매매'];
 const EMOTIONS = ['차분', '확신', '조급', 'FOMO', '복수심', '지루함', '공포', '욕심', '불안함'];
 const MISTAKE_TAGS = ['추격매수', '손절미룸', '과레버리지', '계획이탈', '조기익절', '물타기', '뇌동진입', '조급함'];
 const STOPLOSS_OPTIONS = ['걸었음', '안 걸었음', '일부만'];
@@ -2747,31 +2747,70 @@ function extraOrderRow() {
   };
 }
 
-// 수량 합산 계산
+// 수량 합산 + 청산(분할/전량) 반영 계산
 function calcPositionSummary(trade) {
   const mainSize = Number(trade.positionSize) || 0;
   const lev = Number(trade.leverage) || 1;
   const orders = trade.extraOrders || [];
+  const entryPrice = Number(trade.entryPrice) || 0;
+  const direction = trade.direction;
 
-  // 매수 쪽 추가 수량 합산
+  // 매수 쪽 추가 수량 합산 (물타기/추가매수)
   const addedSize = orders.filter(o => o.type === '물타기' || o.type === '추가매수').reduce((s, o) => s + (Number(o.size) || 0), 0);
-  const totalSize = mainSize + addedSize;
+  const totalSize = mainSize + addedSize; // 총 투입 수량 (물탄/불탄 것 포함)
   const totalMargin = totalSize / lev;
+
+  // 청산 쪽 (분할청산/전량청산/손절) - 건별로 실현손익 따로 계산
+  const closeOrders = orders.filter(o => o.type === '분할청산' || o.type === '전량청산' || o.type === '손절');
+  const closedSize = closeOrders.reduce((s, o) => s + (Number(o.size) || 0), 0);
+  const closeBreakdown = closeOrders.map(o => {
+    const size = Number(o.size) || 0;
+    const exitP = Number(o.exitPrice) || 0;
+    let pnl = null;
+    if (size && exitP && entryPrice) {
+      const pct = calcPnlPct({
+        direction,
+        entryPrice,
+        exitPrice: exitP,
+        leverage: lev
+      });
+      const margin = size / lev;
+      const rawPnl = pct !== null ? margin * (pct / 100) : 0;
+      const fee = size * 0.0005 * 2;
+      pnl = rawPnl - fee;
+    }
+    return {
+      _id: o._id,
+      pnl
+    };
+  });
+  const closedRealizedPnl = closeBreakdown.reduce((s, o) => s + (o.pnl || 0), 0);
+
+  // 아직 안 턴 나머지 수량 - 메인 필드(진입가/청산가/pnlPct)는 이 나머지가 청산된 걸로 취급
+  const remainingSize = Math.max(totalSize - closedSize, 0);
+  const remainingMargin = remainingSize / lev;
+  let remainingPnl = null;
+  if (trade.pnlPct !== null && trade.pnlPct !== undefined && remainingSize) {
+    const margin = remainingSize / lev;
+    const rawPnl = margin * (trade.pnlPct / 100);
+    const fee = remainingSize * 0.0005 * 2;
+    remainingPnl = rawPnl - fee;
+  }
 
   // 실손익 계산: 증거금(포지션/레버리지) × (pnlPct/100) - OKX 테이커 수수료(0.05%×2)
   let realizedPnl = null;
-  if (trade.pnlPct !== null && trade.pnlPct !== undefined && totalSize) {
-    const lev = Number(trade.leverage) || 1;
-    const margin = totalSize / lev;
-    const rawPnl = margin * (trade.pnlPct / 100);
-    const fee = totalSize * 0.0005 * 2;
-    realizedPnl = rawPnl - fee;
+  if (remainingPnl !== null || closeBreakdown.length > 0) {
+    realizedPnl = (remainingPnl || 0) + closedRealizedPnl;
   }
   return {
     mainSize,
     addedSize,
     totalSize,
     totalMargin,
+    closedSize,
+    remainingSize,
+    remainingMargin,
+    closeBreakdown,
     realizedPnl
   };
 }
@@ -2974,11 +3013,11 @@ function TradeCard({
     className: "dot-sep"
   }, "·"), /*#__PURE__*/React.createElement("span", {
     className: "mono"
-  }, summary.addedSize > 0 ? `${Number(trade.positionSize).toLocaleString('ko-KR')}+${summary.addedSize.toLocaleString('ko-KR')}=${summary.totalSize.toLocaleString('ko-KR')}U` : `${Number(trade.positionSize).toLocaleString('ko-KR')}U`, /*#__PURE__*/React.createElement("span", {
+  }, summary.closedSize > 0 ? `${Number(trade.positionSize).toLocaleString('ko-KR')}${summary.addedSize > 0 ? `+${summary.addedSize.toLocaleString('ko-KR')}` : ''}-${summary.closedSize.toLocaleString('ko-KR')}=${summary.remainingSize.toLocaleString('ko-KR')}U` : summary.addedSize > 0 ? `${Number(trade.positionSize).toLocaleString('ko-KR')}+${summary.addedSize.toLocaleString('ko-KR')}=${summary.totalSize.toLocaleString('ko-KR')}U` : `${Number(trade.positionSize).toLocaleString('ko-KR')}U`, /*#__PURE__*/React.createElement("span", {
     className: "trade-card__margin-hint"
-  }, ' ', "(증거금 ", summary.totalMargin.toLocaleString('ko-KR', {
+  }, ' ', "(증거금 ", (summary.closedSize > 0 ? summary.remainingMargin : summary.totalMargin).toLocaleString('ko-KR', {
     maximumFractionDigits: 0
-  }), ")"))), /*#__PURE__*/React.createElement("span", {
+  }), summary.closedSize > 0 ? ' 잔여' : '', ")"))), /*#__PURE__*/React.createElement("span", {
     className: "dot-sep"
   }, "·"), /*#__PURE__*/React.createElement("span", {
     className: "mono timecode"
@@ -3030,26 +3069,33 @@ function TradeCard({
     className: "field-label"
   }, "추가 주문 내역"), /*#__PURE__*/React.createElement("div", {
     className: "extra-orders__list"
-  }, (trade.extraOrders || []).map(row => /*#__PURE__*/React.createElement("div", {
-    className: "extra-order-view-row",
-    key: row._id
-  }, /*#__PURE__*/React.createElement("span", {
-    className: `extra-order-row__type-badge extra-order-row__type-badge--${row.type === '물타기' || row.type === '추가매수' ? 'buy' : 'sell'}`
-  }, row.type), /*#__PURE__*/React.createElement("span", {
-    className: "mono"
-  }, row.price ? Number(row.price).toLocaleString('ko-KR') : '—'), row.exitPrice && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
-    className: "dot-sep"
-  }, "→"), /*#__PURE__*/React.createElement("span", {
-    className: "mono"
-  }, Number(row.exitPrice).toLocaleString('ko-KR'))), row.size && /*#__PURE__*/React.createElement("span", {
-    className: "mono timecode"
-  }, Number(row.size).toLocaleString('ko-KR'), "U"), /*#__PURE__*/React.createElement("span", {
-    className: "dot-sep"
-  }, "·"), /*#__PURE__*/React.createElement("span", {
-    className: "mono timecode"
-  }, (row.time || '').replace('T', ' ')), row.memo && /*#__PURE__*/React.createElement("span", {
-    className: "extra-order-row__memo-view"
-  }, row.memo))))), !editing && (trade.reasoning || trade.mistakeAnalysis || trade.nextPlan || trade.goodPoints) && /*#__PURE__*/React.createElement("div", {
+  }, (trade.extraOrders || []).map(row => {
+    const isClose = row.type === '분할청산' || row.type === '전량청산' || row.type === '손절';
+    const closeInfo = summary.closeBreakdown.find(c => c._id === row._id);
+    const rowPnl = closeInfo ? closeInfo.pnl : null;
+    return /*#__PURE__*/React.createElement("div", {
+      className: "extra-order-view-row",
+      key: row._id
+    }, /*#__PURE__*/React.createElement("span", {
+      className: `extra-order-row__type-badge extra-order-row__type-badge--${row.type === '물타기' || row.type === '추가매수' ? 'buy' : 'sell'}`
+    }, row.type), /*#__PURE__*/React.createElement("span", {
+      className: "mono"
+    }, row.price ? Number(row.price).toLocaleString('ko-KR') : '—'), row.exitPrice && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+      className: "dot-sep"
+    }, "→"), /*#__PURE__*/React.createElement("span", {
+      className: "mono"
+    }, Number(row.exitPrice).toLocaleString('ko-KR'))), row.size && /*#__PURE__*/React.createElement("span", {
+      className: "mono timecode"
+    }, Number(row.size).toLocaleString('ko-KR'), "U"), isClose && rowPnl !== null && rowPnl !== undefined && /*#__PURE__*/React.createElement("span", {
+      className: `mono ${rowPnl >= 0 ? 'is-pos' : 'is-neg'}`
+    }, (rowPnl >= 0 ? '+' : '') + rowPnl.toFixed(2) + 'U'), /*#__PURE__*/React.createElement("span", {
+      className: "dot-sep"
+    }, "·"), /*#__PURE__*/React.createElement("span", {
+      className: "mono timecode"
+    }, (row.time || '').replace('T', ' ')), row.memo && /*#__PURE__*/React.createElement("span", {
+      className: "extra-order-row__memo-view"
+    }, row.memo));
+  }))), !editing && (trade.reasoning || trade.mistakeAnalysis || trade.nextPlan || trade.goodPoints) && /*#__PURE__*/React.createElement("div", {
     className: "trade-card__notes"
   }, trade.reasoning && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "근거."), " ", trade.reasoning), trade.mistakeAnalysis && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "잘못된 점."), " ", trade.mistakeAnalysis), trade.nextPlan && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "다음 계획."), " ", trade.nextPlan), trade.goodPoints && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", {
     style: {
