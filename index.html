@@ -1449,6 +1449,9 @@ a {
   font-size: 11px;
   color: var(--text-faint);
 }
+.edit-core-field--wide {
+  grid-column: 1 / -1;
+}
 .edit-core-field input,
 .edit-core-field select {
   padding: 8px 10px;
@@ -2071,6 +2074,15 @@ function formatR(n) {
   if (n === null || n === undefined || Number.isNaN(n)) return '—';
   const sign = n > 0 ? '+' : '';
   return `${sign}${n.toFixed(2)}R`;
+}
+
+// 진입/청산 시각을 한 줄로 표시 (며칠 들고 있었어도 헷갈리지 않게 양쪽 다 날짜+시간 풀로 표시)
+function formatTimeRange(entryTime, exitTime) {
+  const entryStr = (entryTime || '').replace('T', ' ');
+  if (!entryStr) return '';
+  if (!exitTime) return entryStr;
+  const exitStr = exitTime.replace('T', ' ');
+  return `${entryStr} → ${exitStr}`;
 }
 
 function getSetupTypes(trade) {
@@ -3021,7 +3033,7 @@ function TradeCard({
     className: "dot-sep"
   }, "·"), /*#__PURE__*/React.createElement("span", {
     className: "mono timecode"
-  }, (trade.entryTime || '').replace('T', ' '))), !editing && (setupTypes.length > 0 || (trade.emotions || []).length > 0 || trade.emotion || trade.stopLoss || trade.followedPlan !== null) && /*#__PURE__*/React.createElement("div", {
+  }, formatTimeRange(trade.entryTime, trade.exitTime))), !editing && (setupTypes.length > 0 || (trade.emotions || []).length > 0 || trade.emotion || trade.stopLoss || trade.followedPlan !== null) && /*#__PURE__*/React.createElement("div", {
     className: "trade-card__tags"
   }, trade.stopLoss && /*#__PURE__*/React.createElement("span", {
     className: `pill pill--stoploss ${trade.stopLoss === '걸었음' ? 'pill--stoploss-ok' : trade.stopLoss === '안 걸었음' ? 'pill--stoploss-no' : 'pill--stoploss-partial'}`
@@ -3154,6 +3166,16 @@ function TradeCard({
     value: draft.leverage || '',
     onChange: e => setDraftField('leverage', e.target.value),
     placeholder: "1"
+  })), /*#__PURE__*/React.createElement("label", {
+    className: "edit-core-field edit-core-field--wide"
+  }, /*#__PURE__*/React.createElement("span", null, "진입 시각"), /*#__PURE__*/React.createElement(DateTimeInput, {
+    value: draft.entryTime,
+    onChange: v => setDraftField('entryTime', v)
+  })), /*#__PURE__*/React.createElement("label", {
+    className: "edit-core-field edit-core-field--wide"
+  }, /*#__PURE__*/React.createElement("span", null, "청산 시각"), /*#__PURE__*/React.createElement(DateTimeInput, {
+    value: draft.exitTime,
+    onChange: v => setDraftField('exitTime', v)
   }))), /*#__PURE__*/React.createElement("p", {
     className: "edit-core-hint"
   }, "손익률(%)은 진입가/청산가/레버리지로 자동 재계산돼요")), /*#__PURE__*/React.createElement("div", {
