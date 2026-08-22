@@ -1449,9 +1449,6 @@ a {
   font-size: 11px;
   color: var(--text-faint);
 }
-.edit-core-field--wide {
-  grid-column: 1 / -1;
-}
 .edit-core-field input,
 .edit-core-field select {
   padding: 8px 10px;
@@ -1891,9 +1888,9 @@ window.TipStore = {
 };
 </script><script>// OKX 공개 API 클라이언트 - 아이폰 Safari 최적화 버전
 // 직접 호출 → corsproxy.io → allorigins.win 순서로 시도
-// 타임아웃을 짧게 잡아서 빠르게 다음 프록시로 넘어감
+// 크립토 perp / 주식 perp / 토큰화 주식(현물, X접두) 자동 판별
 
-const OKX_BASE = 'https://www.okx.com';
+var OKX_BASE = 'https://www.okx.com';
 
 function proxyUrls(targetUrl) {
   return [
@@ -1905,17 +1902,17 @@ function proxyUrls(targetUrl) {
 
 async function fetchJsonWithFallback(targetUrl, timeoutMs) {
   timeoutMs = timeoutMs || 6000;
-  const attempts = proxyUrls(targetUrl);
+  var attempts = proxyUrls(targetUrl);
   var lastError = null;
   for (var i = 0; i < attempts.length; i++) {
     var url = attempts[i];
     try {
       var controller = new AbortController();
-      var timer = setTimeout(function() { controller.abort(); }, timeoutMs);
+      var timer = setTimeout(function () { controller.abort(); }, timeoutMs);
       var res = await fetch(url, { signal: controller.signal });
       clearTimeout(timer);
       if (!res.ok) {
-        lastError = new Error('HTTP ' + res.status + ' (' + url.slice(0, 40) + ')');
+        lastError = new Error('HTTP ' + res.status);
         continue;
       }
       var data = await res.json();
@@ -1931,16 +1928,55 @@ async function fetchJsonWithFallback(targetUrl, timeoutMs) {
 var BAR_MAP = { '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1H', '4h': '4H', '1d': '1Dutc' };
 var BAR_SECONDS = { '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400 };
 
+// 종목명 하나로 OKX의 여러 상품군을 커버하는 후보 instId 목록
+// - 크립토 무기한선물:       BTC-USDT-SWAP
+// - 주식 무기한선물:         AAPL-USDT-SWAP, SKHY-USDT-SWAP
+// - 토큰화 주식(현물, X접두): XAAPL-USDT, XSKHY-USDT
+function buildInstIdCandidates(symbolRaw) {
+  var raw = ((symbolRaw || 'BTC') + '').trim().toUpperCase();
+  if (raw.indexOf('-') >= 0) return [raw];
+  var base = raw.replace(/USDT$/, '');
+  var candidates = [base + '-USDT-SWAP', base + '-USDT'];
+  if (base.charAt(0) !== 'X') {
+    candidates.push('X' + base + '-USDT');
+    candidates.push('X' + base + '-USDT-SWAP');
+  }
+  return candidates;
+}
+
+// 호환용 (기존 코드가 참조할 수 있음)
 function toInstId(symbolRaw) {
-  var s = ((symbolRaw || 'BTC') + '').trim().toUpperCase();
-  s = s.replace(/USDT$/, '-USDT').replace(/--/g, '-');
-  if (s.indexOf('-') < 0) s = s + '-USDT';
-  if (!s.endsWith('-SWAP')) s = s + '-SWAP';
-  return s;
+  return buildInstIdCandidates(symbolRaw)[0];
+}
+
+// 후보를 하나씩 찔러보고 실제 캔들이 나오는 instId를 찾음. 결과는 캐시.
+var instIdCache = {};
+
+async function resolveInstId(symbolRaw, bar) {
+  var key = ((symbolRaw || '') + '').trim().toUpperCase() + '|' + bar;
+  if (instIdCache[key]) return instIdCache[key];
+
+  var candidates = buildInstIdCandidates(symbolRaw);
+  for (var i = 0; i < candidates.length; i++) {
+    var cand = candidates[i];
+    try {
+      var url = OKX_BASE + '/api/v5/market/candles?instId=' + encodeURIComponent(cand) + '&bar=' + encodeURIComponent(bar) + '&limit=1';
+      var json = await fetchJsonWithFallback(url, 6000);
+      if (json.code === '0' && Array.isArray(json.data) && json.data.length > 0) {
+        instIdCache[key] = cand;
+        return cand;
+      }
+    } catch (e) {
+      // 다음 후보로
+    }
+  }
+  var fallback = candidates[0];
+  instIdCache[key] = fallback;
+  return fallback;
 }
 
 function normalizeCandles(rows) {
-  return rows.map(function(r) {
+  return rows.map(function (r) {
     return {
       time: Math.floor(Number(r[0]) / 1000),
       open: Number(r[1]),
@@ -1949,18 +1985,21 @@ function normalizeCandles(rows) {
       close: Number(r[4]),
       volume: Number(r[5]),
     };
-  }).sort(function(a, b) { return a.time - b.time; });
+  }).sort(function (a, b) { return a.time - b.time; });
 }
 
 window.OkxClient = {
   toInstId: toInstId,
+  buildInstIdCandidates: buildInstIdCandidates,
 
-  getCandles: async function(opts) {
+  getCandles: async function (opts) {
     var symbol = opts.symbol, timeframe = opts.timeframe || '15m';
     var entryTime = opts.entryTime, exitTime = opts.exitTime;
-    var instId = toInstId(symbol);
     var bar = BAR_MAP[timeframe] || '15m';
     var barSeconds = BAR_SECONDS[timeframe] || 900;
+
+    // 크립토/주식perp/토큰화주식 중 실제로 존재하는 심볼 자동 판별
+    var instId = await resolveInstId(symbol, bar);
 
     var entryMs = entryTime ? new Date(entryTime).getTime() : Date.now();
     var exitMs = exitTime ? new Date(exitTime).getTime() : entryMs;
@@ -1996,13 +2035,13 @@ window.OkxClient = {
         if (oldest <= windowStartMs) break;
       }
       var map = new Map();
-      collected.forEach(function(c) { map.set(c.time, c); });
-      candles = Array.from(map.values()).sort(function(a, b) { return a.time - b.time; });
+      collected.forEach(function (c) { map.set(c.time, c); });
+      candles = Array.from(map.values()).sort(function (a, b) { return a.time - b.time; });
     }
 
     var startSec = Math.floor(windowStartMs / 1000);
     var endSec = Math.floor((windowEndMs + barSeconds * 1000) / 1000);
-    var trimmed = candles.filter(function(c) { return c.time >= startSec && c.time <= endSec; });
+    var trimmed = candles.filter(function (c) { return c.time >= startSec && c.time <= endSec; });
 
     return {
       instId: instId,
@@ -2011,21 +2050,47 @@ window.OkxClient = {
     };
   },
 
-  getPrice: async function(symbol) {
-    var instId = toInstId(symbol);
-    var url = OKX_BASE + '/api/v5/market/ticker?instId=' + encodeURIComponent(instId);
-    var json = await fetchJsonWithFallback(url, 6000);
-    if (json.code === '0' && json.data && json.data[0]) {
-      return { instId: instId, last: Number(json.data[0].last) };
+  getPrice: async function (symbol) {
+    var candidates = buildInstIdCandidates(symbol);
+    for (var i = 0; i < candidates.length; i++) {
+      var instId = candidates[i];
+      try {
+        var url = OKX_BASE + '/api/v5/market/ticker?instId=' + encodeURIComponent(instId);
+        var json = await fetchJsonWithFallback(url, 6000);
+        if (json.code === '0' && json.data && json.data[0]) {
+          return { instId: instId, last: Number(json.data[0].last) };
+        }
+      } catch (e) {
+        // 다음 후보로
+      }
     }
-    throw new Error(json.msg || '종목을 찾을 수 없어요');
+    throw new Error('종목을 찾을 수 없어요');
   },
 };
 </script><script>const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
+// 엔터 누르면 같은 그룹의 다음 입력칸으로 이동 (숫자칸 전용)
+function __enterNext(e, groupSelector, fieldSelector) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  var groupEl = e.target.closest(groupSelector);
+  if (!groupEl) return;
+  var fields = Array.prototype.slice.call(groupEl.querySelectorAll(fieldSelector));
+  var idx = fields.indexOf(e.target);
+  if (idx >= 0 && idx < fields.length - 1) {
+    var next = fields[idx + 1];
+    next.focus();
+    if (next.select) next.select();
+  } else {
+    e.target.blur();
+  }
+}
+function handleEnterNextBulk(e) { __enterNext(e, '.bulk-table__row', 'input.bulk-input'); }
+function handleEnterNextEdit(e) { __enterNext(e, '.edit-core-grid', 'input'); }
+
 // constants.js
 
-const SETUP_TYPES = ['돌파', '눌림목', '추세추종', '역추세', '스캘핑', '지지/저항', '매물대', '차트패턴', '수면매매'];
+const SETUP_TYPES = ['돌파', '눌림목', '추세추종', '역추세', '스캘핑', '지지/저항', '매물대', '차트패턴'];
 const EMOTIONS = ['차분', '확신', '조급', 'FOMO', '복수심', '지루함', '공포', '욕심', '불안함'];
 const MISTAKE_TAGS = ['추격매수', '손절미룸', '과레버리지', '계획이탈', '조기익절', '물타기', '뇌동진입', '조급함'];
 const STOPLOSS_OPTIONS = ['걸었음', '안 걸었음', '일부만'];
@@ -2074,15 +2139,6 @@ function formatR(n) {
   if (n === null || n === undefined || Number.isNaN(n)) return '—';
   const sign = n > 0 ? '+' : '';
   return `${sign}${n.toFixed(2)}R`;
-}
-
-// 진입/청산 시각을 한 줄로 표시 (며칠 들고 있었어도 헷갈리지 않게 양쪽 다 날짜+시간 풀로 표시)
-function formatTimeRange(entryTime, exitTime) {
-  const entryStr = (entryTime || '').replace('T', ' ');
-  if (!entryStr) return '';
-  if (!exitTime) return entryStr;
-  const exitStr = exitTime.replace('T', ' ');
-  return `${entryStr} → ${exitStr}`;
 }
 
 function getSetupTypes(trade) {
@@ -2675,6 +2731,7 @@ function BulkEntryTable({
       className: "bulk-input",
       value: row.entryPrice,
       onChange: e => updateRow(row._rowId, 'entryPrice', e.target.value),
+      onKeyDown: handleEnterNextBulk,
       placeholder: "0"
     }), /*#__PURE__*/React.createElement("input", {
       type: "text",
@@ -2683,6 +2740,7 @@ function BulkEntryTable({
       className: "bulk-input",
       value: row.exitPrice,
       onChange: e => updateRow(row._rowId, 'exitPrice', e.target.value),
+      onKeyDown: handleEnterNextBulk,
       placeholder: "0"
     }), /*#__PURE__*/React.createElement("input", {
       type: "text",
@@ -2691,6 +2749,7 @@ function BulkEntryTable({
       className: "bulk-input",
       value: row.positionSize,
       onChange: e => updateRow(row._rowId, 'positionSize', e.target.value),
+      onKeyDown: handleEnterNextBulk,
       placeholder: "35000"
     }), /*#__PURE__*/React.createElement("input", {
       type: "text",
@@ -2700,7 +2759,8 @@ function BulkEntryTable({
       className: "bulk-input bulk-input--narrow",
       value: row.leverage,
       placeholder: "1",
-      onChange: e => updateRow(row._rowId, 'leverage', e.target.value)
+      onChange: e => updateRow(row._rowId, 'leverage', e.target.value),
+      onKeyDown: handleEnterNextBulk
     }), /*#__PURE__*/React.createElement("span", {
       className: "bulk-table__margin mono"
     }, margin), /*#__PURE__*/React.createElement("select", {
@@ -2759,70 +2819,31 @@ function extraOrderRow() {
   };
 }
 
-// 수량 합산 + 청산(분할/전량) 반영 계산
+// 수량 합산 계산
 function calcPositionSummary(trade) {
   const mainSize = Number(trade.positionSize) || 0;
   const lev = Number(trade.leverage) || 1;
   const orders = trade.extraOrders || [];
-  const entryPrice = Number(trade.entryPrice) || 0;
-  const direction = trade.direction;
 
-  // 매수 쪽 추가 수량 합산 (물타기/추가매수)
+  // 매수 쪽 추가 수량 합산
   const addedSize = orders.filter(o => o.type === '물타기' || o.type === '추가매수').reduce((s, o) => s + (Number(o.size) || 0), 0);
-  const totalSize = mainSize + addedSize; // 총 투입 수량 (물탄/불탄 것 포함)
+  const totalSize = mainSize + addedSize;
   const totalMargin = totalSize / lev;
-
-  // 청산 쪽 (분할청산/전량청산/손절) - 건별로 실현손익 따로 계산
-  const closeOrders = orders.filter(o => o.type === '분할청산' || o.type === '전량청산' || o.type === '손절');
-  const closedSize = closeOrders.reduce((s, o) => s + (Number(o.size) || 0), 0);
-  const closeBreakdown = closeOrders.map(o => {
-    const size = Number(o.size) || 0;
-    const exitP = Number(o.exitPrice) || 0;
-    let pnl = null;
-    if (size && exitP && entryPrice) {
-      const pct = calcPnlPct({
-        direction,
-        entryPrice,
-        exitPrice: exitP,
-        leverage: lev
-      });
-      const margin = size / lev;
-      const rawPnl = pct !== null ? margin * (pct / 100) : 0;
-      const fee = size * 0.0005 * 2;
-      pnl = rawPnl - fee;
-    }
-    return {
-      _id: o._id,
-      pnl
-    };
-  });
-  const closedRealizedPnl = closeBreakdown.reduce((s, o) => s + (o.pnl || 0), 0);
-
-  // 아직 안 턴 나머지 수량 - 메인 필드(진입가/청산가/pnlPct)는 이 나머지가 청산된 걸로 취급
-  const remainingSize = Math.max(totalSize - closedSize, 0);
-  const remainingMargin = remainingSize / lev;
-  let remainingPnl = null;
-  if (trade.pnlPct !== null && trade.pnlPct !== undefined && remainingSize) {
-    const margin = remainingSize / lev;
-    const rawPnl = margin * (trade.pnlPct / 100);
-    const fee = remainingSize * 0.0005 * 2;
-    remainingPnl = rawPnl - fee;
-  }
 
   // 실손익 계산: 증거금(포지션/레버리지) × (pnlPct/100) - OKX 테이커 수수료(0.05%×2)
   let realizedPnl = null;
-  if (remainingPnl !== null || closeBreakdown.length > 0) {
-    realizedPnl = (remainingPnl || 0) + closedRealizedPnl;
+  if (trade.pnlPct !== null && trade.pnlPct !== undefined && totalSize) {
+    const lev = Number(trade.leverage) || 1;
+    const margin = totalSize / lev;
+    const rawPnl = margin * (trade.pnlPct / 100);
+    const fee = totalSize * 0.0005 * 2;
+    realizedPnl = rawPnl - fee;
   }
   return {
     mainSize,
     addedSize,
     totalSize,
     totalMargin,
-    closedSize,
-    remainingSize,
-    remainingMargin,
-    closeBreakdown,
     realizedPnl
   };
 }
@@ -3025,15 +3046,15 @@ function TradeCard({
     className: "dot-sep"
   }, "·"), /*#__PURE__*/React.createElement("span", {
     className: "mono"
-  }, summary.closedSize > 0 ? `${Number(trade.positionSize).toLocaleString('ko-KR')}${summary.addedSize > 0 ? `+${summary.addedSize.toLocaleString('ko-KR')}` : ''}-${summary.closedSize.toLocaleString('ko-KR')}=${summary.remainingSize.toLocaleString('ko-KR')}U` : summary.addedSize > 0 ? `${Number(trade.positionSize).toLocaleString('ko-KR')}+${summary.addedSize.toLocaleString('ko-KR')}=${summary.totalSize.toLocaleString('ko-KR')}U` : `${Number(trade.positionSize).toLocaleString('ko-KR')}U`, /*#__PURE__*/React.createElement("span", {
+  }, summary.addedSize > 0 ? `${Number(trade.positionSize).toLocaleString('ko-KR')}+${summary.addedSize.toLocaleString('ko-KR')}=${summary.totalSize.toLocaleString('ko-KR')}U` : `${Number(trade.positionSize).toLocaleString('ko-KR')}U`, /*#__PURE__*/React.createElement("span", {
     className: "trade-card__margin-hint"
-  }, ' ', "(증거금 ", (summary.closedSize > 0 ? summary.remainingMargin : summary.totalMargin).toLocaleString('ko-KR', {
+  }, ' ', "(증거금 ", summary.totalMargin.toLocaleString('ko-KR', {
     maximumFractionDigits: 0
-  }), summary.closedSize > 0 ? ' 잔여' : '', ")"))), /*#__PURE__*/React.createElement("span", {
+  }), ")"))), /*#__PURE__*/React.createElement("span", {
     className: "dot-sep"
   }, "·"), /*#__PURE__*/React.createElement("span", {
     className: "mono timecode"
-  }, formatTimeRange(trade.entryTime, trade.exitTime))), !editing && (setupTypes.length > 0 || (trade.emotions || []).length > 0 || trade.emotion || trade.stopLoss || trade.followedPlan !== null) && /*#__PURE__*/React.createElement("div", {
+  }, (trade.entryTime || '').replace('T', ' '))), !editing && (setupTypes.length > 0 || (trade.emotions || []).length > 0 || trade.emotion || trade.stopLoss || trade.followedPlan !== null) && /*#__PURE__*/React.createElement("div", {
     className: "trade-card__tags"
   }, trade.stopLoss && /*#__PURE__*/React.createElement("span", {
     className: `pill pill--stoploss ${trade.stopLoss === '걸었음' ? 'pill--stoploss-ok' : trade.stopLoss === '안 걸었음' ? 'pill--stoploss-no' : 'pill--stoploss-partial'}`
@@ -3081,33 +3102,26 @@ function TradeCard({
     className: "field-label"
   }, "추가 주문 내역"), /*#__PURE__*/React.createElement("div", {
     className: "extra-orders__list"
-  }, (trade.extraOrders || []).map(row => {
-    const isClose = row.type === '분할청산' || row.type === '전량청산' || row.type === '손절';
-    const closeInfo = summary.closeBreakdown.find(c => c._id === row._id);
-    const rowPnl = closeInfo ? closeInfo.pnl : null;
-    return /*#__PURE__*/React.createElement("div", {
-      className: "extra-order-view-row",
-      key: row._id
-    }, /*#__PURE__*/React.createElement("span", {
-      className: `extra-order-row__type-badge extra-order-row__type-badge--${row.type === '물타기' || row.type === '추가매수' ? 'buy' : 'sell'}`
-    }, row.type), /*#__PURE__*/React.createElement("span", {
-      className: "mono"
-    }, row.price ? Number(row.price).toLocaleString('ko-KR') : '—'), row.exitPrice && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
-      className: "dot-sep"
-    }, "→"), /*#__PURE__*/React.createElement("span", {
-      className: "mono"
-    }, Number(row.exitPrice).toLocaleString('ko-KR'))), row.size && /*#__PURE__*/React.createElement("span", {
-      className: "mono timecode"
-    }, Number(row.size).toLocaleString('ko-KR'), "U"), isClose && rowPnl !== null && rowPnl !== undefined && /*#__PURE__*/React.createElement("span", {
-      className: `mono ${rowPnl >= 0 ? 'is-pos' : 'is-neg'}`
-    }, (rowPnl >= 0 ? '+' : '') + rowPnl.toFixed(2) + 'U'), /*#__PURE__*/React.createElement("span", {
-      className: "dot-sep"
-    }, "·"), /*#__PURE__*/React.createElement("span", {
-      className: "mono timecode"
-    }, (row.time || '').replace('T', ' ')), row.memo && /*#__PURE__*/React.createElement("span", {
-      className: "extra-order-row__memo-view"
-    }, row.memo));
-  }))), !editing && (trade.reasoning || trade.mistakeAnalysis || trade.nextPlan || trade.goodPoints) && /*#__PURE__*/React.createElement("div", {
+  }, (trade.extraOrders || []).map(row => /*#__PURE__*/React.createElement("div", {
+    className: "extra-order-view-row",
+    key: row._id
+  }, /*#__PURE__*/React.createElement("span", {
+    className: `extra-order-row__type-badge extra-order-row__type-badge--${row.type === '물타기' || row.type === '추가매수' ? 'buy' : 'sell'}`
+  }, row.type), /*#__PURE__*/React.createElement("span", {
+    className: "mono"
+  }, row.price ? Number(row.price).toLocaleString('ko-KR') : '—'), row.exitPrice && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+    className: "dot-sep"
+  }, "→"), /*#__PURE__*/React.createElement("span", {
+    className: "mono"
+  }, Number(row.exitPrice).toLocaleString('ko-KR'))), row.size && /*#__PURE__*/React.createElement("span", {
+    className: "mono timecode"
+  }, Number(row.size).toLocaleString('ko-KR'), "U"), /*#__PURE__*/React.createElement("span", {
+    className: "dot-sep"
+  }, "·"), /*#__PURE__*/React.createElement("span", {
+    className: "mono timecode"
+  }, (row.time || '').replace('T', ' ')), row.memo && /*#__PURE__*/React.createElement("span", {
+    className: "extra-order-row__memo-view"
+  }, row.memo))))), !editing && (trade.reasoning || trade.mistakeAnalysis || trade.nextPlan || trade.goodPoints) && /*#__PURE__*/React.createElement("div", {
     className: "trade-card__notes"
   }, trade.reasoning && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "근거."), " ", trade.reasoning), trade.mistakeAnalysis && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "잘못된 점."), " ", trade.mistakeAnalysis), trade.nextPlan && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "다음 계획."), " ", trade.nextPlan), trade.goodPoints && /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", {
     style: {
@@ -3123,7 +3137,8 @@ function TradeCard({
     className: "edit-core-field"
   }, /*#__PURE__*/React.createElement("span", null, "종목"), /*#__PURE__*/React.createElement("input", {
     value: draft.symbol,
-    onChange: e => setDraftField('symbol', e.target.value.toUpperCase())
+    onChange: e => setDraftField('symbol', e.target.value.toUpperCase()),
+        onKeyDown: handleEnterNextEdit
   })), /*#__PURE__*/React.createElement("label", {
     className: "edit-core-field"
   }, /*#__PURE__*/React.createElement("span", null, "방향"), /*#__PURE__*/React.createElement("select", {
@@ -3140,7 +3155,8 @@ function TradeCard({
     inputMode: "decimal",
     pattern: "[0-9]*\\.?[0-9]*",
     value: draft.entryPrice,
-    onChange: e => setDraftField('entryPrice', e.target.value)
+    onChange: e => setDraftField('entryPrice', e.target.value),
+        onKeyDown: handleEnterNextEdit
   })), /*#__PURE__*/React.createElement("label", {
     className: "edit-core-field"
   }, /*#__PURE__*/React.createElement("span", null, "청산가"), /*#__PURE__*/React.createElement("input", {
@@ -3148,7 +3164,8 @@ function TradeCard({
     inputMode: "decimal",
     pattern: "[0-9]*\\.?[0-9]*",
     value: draft.exitPrice,
-    onChange: e => setDraftField('exitPrice', e.target.value)
+    onChange: e => setDraftField('exitPrice', e.target.value),
+        onKeyDown: handleEnterNextEdit
   })), /*#__PURE__*/React.createElement("label", {
     className: "edit-core-field"
   }, /*#__PURE__*/React.createElement("span", null, "수량(USDT)"), /*#__PURE__*/React.createElement("input", {
@@ -3156,7 +3173,8 @@ function TradeCard({
     inputMode: "decimal",
     pattern: "[0-9]*\\.?[0-9]*",
     value: draft.positionSize || '',
-    onChange: e => setDraftField('positionSize', e.target.value)
+    onChange: e => setDraftField('positionSize', e.target.value),
+        onKeyDown: handleEnterNextEdit
   })), /*#__PURE__*/React.createElement("label", {
     className: "edit-core-field"
   }, /*#__PURE__*/React.createElement("span", null, "레버리지"), /*#__PURE__*/React.createElement("input", {
@@ -3165,17 +3183,8 @@ function TradeCard({
     pattern: "[0-9]*\\.?[0-9]*",
     value: draft.leverage || '',
     onChange: e => setDraftField('leverage', e.target.value),
+        onKeyDown: handleEnterNextEdit,
     placeholder: "1"
-  })), /*#__PURE__*/React.createElement("label", {
-    className: "edit-core-field edit-core-field--wide"
-  }, /*#__PURE__*/React.createElement("span", null, "진입 시각"), /*#__PURE__*/React.createElement(DateTimeInput, {
-    value: draft.entryTime,
-    onChange: v => setDraftField('entryTime', v)
-  })), /*#__PURE__*/React.createElement("label", {
-    className: "edit-core-field edit-core-field--wide"
-  }, /*#__PURE__*/React.createElement("span", null, "청산 시각"), /*#__PURE__*/React.createElement(DateTimeInput, {
-    value: draft.exitTime,
-    onChange: v => setDraftField('exitTime', v)
   }))), /*#__PURE__*/React.createElement("p", {
     className: "edit-core-hint"
   }, "손익률(%)은 진입가/청산가/레버리지로 자동 재계산돼요")), /*#__PURE__*/React.createElement("div", {
