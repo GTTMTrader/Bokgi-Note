@@ -4387,7 +4387,7 @@ function TipCardMobile({ tip, number, onEdit, onDelete }) {
       ),
       tip.source && React.createElement('span', { className: 'pill pill--source' }, tip.source)
     ),
-    React.createElement('p', { className: 'tip-card__content' }, tip.content),
+    React.createElement('p', { className: 'tip-card__content' }, tip.content || tip.note || ''),
     hasChart &&
       React.createElement(
         'div',
@@ -4439,6 +4439,7 @@ function TipsView({ tips, onAdd, onEdit, onDelete }) {
       setForm({
         ...EMPTY_TIP,
         ...editingTip,
+        content: editingTip.content || editingTip.note || '',
         hasChart: Boolean(editingTip.symbol && editingTip.chartTime),
       });
       setShowForm(true);
@@ -4468,6 +4469,8 @@ function TipsView({ tips, onAdd, onEdit, onDelete }) {
       payload.chartTime = '';
     }
     delete payload.hasChart;
+    // 구버전 모바일은 내용을 note에 저장했음 → 두 필드를 항상 같이 맞춰둔다
+    payload.note = payload.content;
 
     if (editingTip) {
       await onEdit(editingTip.id, payload);
