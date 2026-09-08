@@ -4358,6 +4358,278 @@ function ReportViewMobile({ trades, tips, studies }) {
   );
 }
 
+// ===== TipsView (팁 노트) =====
+const EMPTY_TIP = {
+  title: '',
+  content: '',
+  source: '',
+  symbol: '',
+  timeframe: '15m',
+  chartTime: '',
+  hasChart: false,
+};
+
+function TipCardMobile({ tip, number, onEdit, onDelete }) {
+  const [showChart, setShowChart] = useState(false);
+  const hasChart = Boolean(tip.symbol && tip.chartTime);
+
+  return React.createElement(
+    'div',
+    { className: 'trade-card tip-card' },
+    React.createElement(
+      'div',
+      { className: 'trade-card__top' },
+      React.createElement(
+        'div',
+        { className: 'trade-card__id' },
+        React.createElement('span', { className: 'tip-number' }, '#' + number),
+        React.createElement('span', { className: 'trade-card__symbol' }, tip.title || '팁 ' + number)
+      ),
+      tip.source && React.createElement('span', { className: 'pill pill--source' }, tip.source)
+    ),
+    React.createElement('p', { className: 'tip-card__content' }, tip.content),
+    hasChart &&
+      React.createElement(
+        'div',
+        { className: 'trade-card__meta' },
+        React.createElement('span', { className: 'mono' }, tip.symbol),
+        React.createElement('span', { className: 'dot-sep' }, '·'),
+        React.createElement('span', { className: 'mono' }, tip.timeframe),
+        React.createElement('span', { className: 'dot-sep' }, '·'),
+        React.createElement('span', { className: 'mono timecode' }, (tip.chartTime || '').replace('T', ' '))
+      ),
+    hasChart && showChart &&
+      React.createElement(
+        'div',
+        { className: 'trade-card__chart-wrap' },
+        React.createElement(TradeChart, {
+          symbol: tip.symbol,
+          timeframe: tip.timeframe,
+          entryTime: tip.chartTime,
+          exitTime: tip.chartTime,
+          entryPrice: null,
+        })
+      ),
+    React.createElement(
+      'div',
+      { className: 'trade-card__actions' },
+      hasChart &&
+        React.createElement(
+          'button',
+          { className: 'link-btn', onClick: () => setShowChart((v) => !v) },
+          showChart ? '차트 숨기기' : '차트 보기'
+        ),
+      React.createElement('button', { className: 'link-btn', onClick: () => onEdit(tip) }, '수정'),
+      React.createElement(
+        'button',
+        { className: 'link-btn link-btn--danger', onClick: () => onDelete(tip.id) },
+        '삭제'
+      )
+    )
+  );
+}
+
+function TipsView({ tips, onAdd, onEdit, onDelete }) {
+  const [form, setForm] = useState(EMPTY_TIP);
+  const [editingTip, setEditingTip] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    if (editingTip) {
+      setForm({
+        ...EMPTY_TIP,
+        ...editingTip,
+        hasChart: Boolean(editingTip.symbol && editingTip.chartTime),
+      });
+      setShowForm(true);
+    } else {
+      setForm(EMPTY_TIP);
+    }
+  }, [editingTip]);
+
+  function set(key, value) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function cancelEdit() {
+    setEditingTip(null);
+    setForm(EMPTY_TIP);
+    setShowForm(false);
+  }
+
+  async function handleSubmit() {
+    if (!form.content.trim()) {
+      alert('팁 내용을 입력해 주세요.');
+      return;
+    }
+    const payload = { ...form };
+    if (!form.hasChart) {
+      payload.symbol = '';
+      payload.chartTime = '';
+    }
+    delete payload.hasChart;
+
+    if (editingTip) {
+      await onEdit(editingTip.id, payload);
+    } else {
+      const nextNumber =
+        tips.length > 0 ? Math.max(...tips.map((t) => t.number || 0)) + 1 : 1;
+      await onAdd({ ...payload, number: nextNumber });
+    }
+    setEditingTip(null);
+    setForm(EMPTY_TIP);
+    setShowForm(false);
+  }
+
+  const sorted = [...(tips || [])].sort((a, b) => (b.number || 0) - (a.number || 0));
+
+  return React.createElement(
+    'section',
+    null,
+    !showForm &&
+      React.createElement(
+        'button',
+        { className: 'btn btn--primary', style: { width: '100%' }, onClick: () => setShowForm(true) },
+        '+ 새 팁 작성'
+      ),
+    showForm &&
+      React.createElement(
+        'div',
+        { className: 'trade-form' },
+        React.createElement(
+          'div',
+          { className: 'trade-form__header' },
+          React.createElement('span', { className: 'eyebrow' }, editingTip ? '팁 수정' : '새 팁 작성'),
+          React.createElement(
+            'span',
+            { className: 'trade-form__autoload-hint' },
+            '텔레그램 등에서 들은 내용을 기록해 두세요'
+          )
+        ),
+        React.createElement(
+          'label',
+          { className: 'field field--full' },
+          React.createElement(
+            'span',
+            null,
+            '제목 ',
+            React.createElement('small', null, '선택, 비우면 번호만 표시')
+          ),
+          React.createElement('input', {
+            value: form.title,
+            onChange: (e) => set('title', e.target.value),
+            placeholder: '예: 4시간봉 꼬리 + 수평 지지 숏 패턴',
+          })
+        ),
+        React.createElement(
+          'label',
+          { className: 'field field--full' },
+          React.createElement('span', null, '내용'),
+          React.createElement(AutoTextarea, {
+            minRows: 4,
+            value: form.content,
+            onChange: (e) => set('content', e.target.value),
+            placeholder: '들은 내용을 그대로, 또는 정리해서 적어두세요…',
+          })
+        ),
+        React.createElement(
+          'label',
+          { className: 'field field--full' },
+          React.createElement('span', null, '출처 ', React.createElement('small', null, '누가 말했는지')),
+          React.createElement('input', {
+            value: form.source,
+            onChange: (e) => set('source', e.target.value),
+            placeholder: '예: OMG, Kris',
+          })
+        ),
+        React.createElement(
+          'div',
+          { className: 'field field--full' },
+          React.createElement(
+            'label',
+            { className: 'checkbox-row' },
+            React.createElement('input', {
+              type: 'checkbox',
+              checked: form.hasChart,
+              onChange: (e) => set('hasChart', e.target.checked),
+            }),
+            React.createElement('span', null, '이 팁에 해당하는 차트도 같이 보고 싶어요')
+          )
+        ),
+        form.hasChart &&
+          React.createElement(
+            'div',
+            { className: 'form-grid' },
+            React.createElement(
+              'label',
+              { className: 'field' },
+              React.createElement('span', null, '종목'),
+              React.createElement('input', {
+                value: form.symbol,
+                onChange: (e) => set('symbol', e.target.value.toUpperCase()),
+                placeholder: 'BTC',
+              })
+            ),
+            React.createElement(
+              'label',
+              { className: 'field' },
+              React.createElement('span', null, '타임프레임'),
+              React.createElement(
+                'select',
+                { value: form.timeframe, onChange: (e) => set('timeframe', e.target.value) },
+                TIMEFRAMES.map((tf) =>
+                  React.createElement('option', { key: tf.value, value: tf.value }, tf.label)
+                )
+              )
+            ),
+            React.createElement(
+              'label',
+              { className: 'field field--full' },
+              React.createElement(
+                'span',
+                null,
+                '차트 시점 ',
+                React.createElement('small', null, '이 패턴이 나타난 시간')
+              ),
+              React.createElement(DateTimeInput, {
+                value: form.chartTime,
+                onChange: (v) => set('chartTime', v),
+              })
+            )
+          ),
+        React.createElement(
+          'div',
+          { className: 'trade-form__actions' },
+          React.createElement(
+            'button',
+            { type: 'button', className: 'btn btn--primary', onClick: handleSubmit },
+            editingTip ? '수정 저장' : '팁 저장'
+          ),
+          React.createElement(
+            'button',
+            { type: 'button', className: 'btn btn--ghost', onClick: cancelEdit },
+            '취소'
+          )
+        )
+      ),
+    sorted.length === 0
+      ? React.createElement('div', { className: 'empty-state' }, '아직 기록된 팁이 없어요.')
+      : React.createElement(
+          'div',
+          { className: 'trade-list' },
+          sorted.map((tip, idx) =>
+            React.createElement(TipCardMobile, {
+              key: tip.id,
+              tip: tip,
+              number: tip.number || sorted.length - idx,
+              onEdit: setEditingTip,
+              onDelete: onDelete,
+            })
+          )
+        )
+  );
+}
+
 // ===== 메인 앱 =====
 function App() {
   const [tab, setTab] = useState('entry');
