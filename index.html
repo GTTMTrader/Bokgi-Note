@@ -178,6 +178,8 @@ a {
 }
 
 .tab-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
   background: none;
   border: none;
   color: var(--text-dim);
@@ -188,8 +190,13 @@ a {
   border-bottom: 2px solid transparent;
   transition: color 0.15s ease, border-color 0.15s ease;
   min-height: 44px;
-  white-space: nowrap;
-  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .tab-btn {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
 }
 
 .tab-btn:hover {
@@ -199,13 +206,6 @@ a {
 .tab-btn--active {
   color: var(--accent);
   border-bottom-color: var(--accent);
-}
-
-@media (max-width: 480px) {
-  .tab-btn {
-    padding: 10px 12px;
-    font-size: 13px;
-  }
 }
 
 /* ===== shared eyebrow / typography helpers ===== */
@@ -1508,6 +1508,11 @@ a {
 .report-view{display:flex;flex-direction:column;gap:14px;}
 .report-actions{display:flex;gap:10px;flex-wrap:wrap;}
 .report-text{background:var(--bg-input);border:1px solid var(--panel-border);border-radius:var(--radius-sm);padding:12px;font-family:var(--font-mono);font-size:11px;line-height:1.7;color:var(--text-dim);white-space:pre-wrap;word-break:break-word;max-height:420px;overflow-y:auto;margin:0;-webkit-user-select:text;user-select:text;}
+
+.img-annot{position:relative;width:100%;line-height:0;border-radius:8px;overflow:hidden;background:#0d1117;}
+.img-annot__img{width:100%;height:auto;display:block;user-select:none;}
+.img-annot__overlay{position:absolute;left:0;top:0;z-index:5;touch-action:none;}
+.photo-label-input{width:100%;padding:8px 10px;font-size:16px;background:var(--bg-input);border:1px solid var(--panel-border);border-radius:var(--radius-sm);color:var(--text);}
 </style></head><body><div id="root"></div><script>/**
  * @license React
  * react.production.min.js
@@ -1943,6 +1948,28 @@ window.StudyStore = {
     return new Promise((res, rej) => {
       const req = db.transaction(STUDY_STORE,'readonly').objectStore(STUDY_STORE).getAll();
       req.onsuccess = () => { const rows = req.result||[]; rows.sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)); res(rows); };
+      req.onerror = () => rej(req.error);
+    });
+  },
+  async add(study) {
+    const db = await openStudyDB();
+    const rec = Object.assign({ id: uid(), createdAt: new Date().toISOString(), synced: false }, study);
+    return new Promise((res, rej) => {
+      const tx = db.transaction(STUDY_STORE,'readwrite');
+      tx.objectStore(STUDY_STORE).add(rec);
+      tx.oncomplete = () => res(rec); tx.onerror = () => rej(tx.error);
+    });
+  },
+  async update(id, patch) {
+    const db = await openStudyDB();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(STUDY_STORE,'readwrite'), s = tx.objectStore(STUDY_STORE);
+      const req = s.get(id);
+      req.onsuccess = () => {
+        if (!req.result) { rej(new Error('not found')); return; }
+        s.put(Object.assign({}, req.result, patch, { id: id }));
+        tx.oncomplete = () => res(true);
+      };
       req.onerror = () => rej(req.error);
     });
   },
@@ -3767,16 +3794,154 @@ function StudyReadChart({ candles, drawings, height }) {
   );
 }
 
-function StudyDetail({ study, onBack, onDelete }) {
+
+// ===== 사진 주석 (모바일) =====
+const IMG_TOOLS_M = [
+  { key: 'none', label: '커서' }, { key: 'hline', label: '수평선' },
+  { key: 'line', label: '선' }, { key: 'box', label: '박스' }
+];
+
+function fileToResizedDataUrl(file, maxWidth, quality) {
+  maxWidth = maxWidth || 1600; quality = quality || 0.85;
+  return new Promise(function (resolve, reject) {
+    const reader = new FileReader();
+    reader.onerror = function () { reject(new Error('파일을 읽지 못했어요')); };
+    reader.onload = function () {
+      const img = new Image();
+      img.onerror = function () { reject(new Error('이미지를 해석하지 못했어요')); };
+      img.onload = function () {
+        let w = img.width, h = img.height;
+        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function ImageAnnotator({ src, drawings, onDrawingsChange, tool, role, readOnly }) {
+  drawings = drawings || []; tool = tool || 'none'; role = role || 'support';
+  const imgRef = useRef(null); const cvRef = useRef(null);
+  const [pending, setPending] = useState(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+
+  const measure = useCallback(function () {
+    const img = imgRef.current;
+    if (!img || !img.complete || !img.naturalWidth) return;
+    if (img.clientWidth && img.clientHeight) setSize({ w: img.clientWidth, h: img.clientHeight });
+  }, []);
+
+  useEffect(function () {
+    measure();
+    window.addEventListener('resize', measure);
+    return function () { window.removeEventListener('resize', measure); };
+  }, [measure, src]);
+
+  useEffect(function () {
+    const cv = cvRef.current;
+    if (!cv || !size.w || !size.h) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (cv.width !== size.w * dpr || cv.height !== size.h * dpr) {
+      cv.width = size.w * dpr; cv.height = size.h * dpr;
+      cv.style.width = size.w + 'px'; cv.style.height = size.h + 'px';
+    }
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, size.w, size.h);
+    const all = pending ? drawings.concat([pending]) : drawings;
+    all.forEach(function (d) {
+      const color = STUDY_COLORS[d.role] || STUDY_COLORS.note;
+      ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2;
+      ctx.setLineDash(d._preview ? [5, 5] : []);
+      if (d.type === 'hline') {
+        const y = d.y * size.h;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(size.w, y); ctx.stroke();
+      } else if (d.type === 'line') {
+        ctx.beginPath();
+        ctx.moveTo(d.x1 * size.w, d.y1 * size.h);
+        ctx.lineTo(d.x2 * size.w, d.y2 * size.h);
+        ctx.stroke();
+      } else if (d.type === 'box') {
+        const x = Math.min(d.x1, d.x2) * size.w, y = Math.min(d.y1, d.y2) * size.h;
+        const bw = Math.abs(d.x2 - d.x1) * size.w, bh = Math.abs(d.y2 - d.y1) * size.h;
+        ctx.globalAlpha = 0.15; ctx.fillRect(x, y, bw, bh); ctx.globalAlpha = 1;
+        ctx.strokeRect(x, y, bw, bh);
+      }
+    });
+    ctx.setLineDash([]);
+  }, [drawings, pending, size]);
+
+  function ridA() { return Math.random().toString(36).slice(2, 10); }
+  function posFrom(e) {
+    const cv = cvRef.current;
+    if (!cv || !size.w || !size.h) return null;
+    const r = cv.getBoundingClientRect();
+    return {
+      x: Math.min(1, Math.max(0, (e.clientX - r.left) / size.w)),
+      y: Math.min(1, Math.max(0, (e.clientY - r.top) / size.h))
+    };
+  }
+  function down(e) {
+    if (readOnly || tool === 'none') return;
+    const p = posFrom(e); if (!p) return;
+    if (tool === 'hline') { onDrawingsChange(drawings.concat([{ id: ridA(), type: 'hline', role: role, y: p.y }])); return; }
+    setPending({ id: ridA(), type: tool, role: role, x1: p.x, y1: p.y, x2: p.x, y2: p.y, _preview: true });
+    if (cvRef.current.setPointerCapture && e.pointerId != null) {
+      try { cvRef.current.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+  }
+  function move(e) {
+    if (readOnly || !pending) return;
+    const p = posFrom(e); if (!p) return;
+    setPending(function (prev) { return prev ? Object.assign({}, prev, { x2: p.x, y2: p.y }) : prev; });
+  }
+  function up(e) {
+    if (readOnly || !pending) return;
+    const p = posFrom(e);
+    const done = Object.assign({}, pending, { x2: p ? p.x : pending.x2, y2: p ? p.y : pending.y2 });
+    delete done._preview;
+    const tiny = Math.abs(done.x2 - done.x1) < 0.01 && Math.abs(done.y2 - done.y1) < 0.01;
+    setPending(null);
+    if (!tiny) onDrawingsChange(drawings.concat([done]));
+  }
+
+  return React.createElement('div', { className: 'img-annot' },
+    React.createElement('img', { ref: imgRef, src: src, className: 'img-annot__img', onLoad: measure, draggable: false, alt: '차트' }),
+    React.createElement('canvas', {
+      ref: cvRef, className: 'img-annot__overlay',
+      style: { pointerEvents: (readOnly || tool === 'none') ? 'none' : 'auto', cursor: tool === 'none' ? 'default' : 'crosshair' },
+      onPointerDown: down, onPointerMove: move, onPointerUp: up
+    })
+  );
+}
+
+function StudyDetail({ study, onBack, onDelete, onUpdate }) {
+  const photos = study.photos || [];
+  const isPhoto = study.sourceMode === 'photo' || photos.length > 0;
   const tfs = study.timeframes || Object.keys(study.frames || {});
   const [tf, setTf] = useState(tfs[0] || '15m');
+  const [pIdx, setPIdx] = useState(0);
+  const [tool, setTool] = useState('none');
+  const [role, setRole] = useState('support');
+
   const frame = (study.frames || {})[tf] || {};
-  const drawings = [...(frame.drawings || []), ...(study.sharedLines || [])];
+  const drawings = (frame.drawings || []).concat(study.sharedLines || []);
+  const cur = photos[pIdx] || null;
+
+  function updCur(next) {
+    if (!cur || !onUpdate) return;
+    const arr = photos.map(function (p, i) { return i === pIdx ? Object.assign({}, p, { drawings: next }) : p; });
+    onUpdate(study.id, { photos: arr });
+  }
 
   return React.createElement('div', { className: 'study-view' },
     React.createElement('div', { className: 'study-edit__head' },
       React.createElement('button', { className: 'link-btn', onClick: onBack }, '← 목록'),
-      React.createElement('button', { className: 'link-btn link-btn--danger', onClick: () => onDelete(study.id) }, '삭제')
+      React.createElement('button', { className: 'link-btn link-btn--danger', onClick: function () { onDelete(study.id); } }, '삭제')
     ),
     React.createElement('div', { className: 'study-card__top' },
       React.createElement('span', { className: 'study-card__symbol' }, study.symbol),
@@ -3786,16 +3951,64 @@ function StudyDetail({ study, onBack, onDelete }) {
     ),
     React.createElement('p', { className: 'study-card__title' }, study.title),
     React.createElement('p', { className: 'study-card__meta mono' }, (study.pivotTime || '').replace('T', ' ')),
-    React.createElement('div', { className: 'study-tf-bar' },
-      tfs.map((t) => React.createElement('button', {
-        key: t, className: 'study-tf-btn ' + (tf === t ? 'study-tf-btn--active' : ''),
-        onClick: () => setTf(t)
-      }, t))
-    ),
-    React.createElement(StudyReadChart, { candles: frame.candles || [], drawings: drawings, height: 300 }),
-    frame.note ? React.createElement('div', { className: 'study-note-block' },
-      React.createElement('span', { className: 'field-label' }, tf + ' 근거'),
-      React.createElement('p', null, frame.note)) : null,
+
+    isPhoto
+      ? React.createElement(React.Fragment, null,
+          photos.length > 1 ? React.createElement('div', { className: 'study-tf-bar' },
+            photos.map(function (p, i) {
+              return React.createElement('button', {
+                key: p.id, className: 'study-tf-btn ' + (pIdx === i ? 'study-tf-btn--active' : ''),
+                onClick: function () { setPIdx(i); }
+              }, p.label || ('사진 ' + (i + 1)));
+            })
+          ) : null,
+          cur ? React.createElement(React.Fragment, null,
+            onUpdate ? React.createElement('div', { className: 'study-toolbar' },
+              React.createElement('div', { className: 'study-toolbar__group' },
+                IMG_TOOLS_M.map(function (t) {
+                  return React.createElement('button', {
+                    key: t.key, className: 'tool-btn ' + (tool === t.key ? 'tool-btn--active' : ''),
+                    onClick: function () { setTool(t.key); }
+                  }, t.label);
+                })
+              ),
+              React.createElement('div', { className: 'study-toolbar__group' },
+                Object.keys(STUDY_ROLE_LABEL).map(function (k) {
+                  return React.createElement('button', {
+                    key: k, className: 'role-btn role-btn--' + k + ' ' + (role === k ? 'role-btn--active' : ''),
+                    onClick: function () { setRole(k); }
+                  }, STUDY_ROLE_LABEL[k]);
+                })
+              ),
+              React.createElement('div', { className: 'study-toolbar__group' },
+                React.createElement('button', { className: 'tool-btn', onClick: function () { updCur((cur.drawings || []).slice(0, -1)); } }, '되돌리기'),
+                React.createElement('button', { className: 'tool-btn', onClick: function () { if (confirm('그림을 모두 지울까요?')) updCur([]); } }, '그림 지우기')
+              )
+            ) : null,
+            React.createElement(ImageAnnotator, {
+              src: cur.src, drawings: cur.drawings || [],
+              onDrawingsChange: updCur, tool: tool, role: role, readOnly: !onUpdate
+            }),
+            cur.note ? React.createElement('div', { className: 'study-note-block' },
+              React.createElement('span', { className: 'field-label' }, (cur.label || '사진') + ' 근거'),
+              React.createElement('p', null, cur.note)) : null
+          ) : null
+        )
+      : React.createElement(React.Fragment, null,
+          React.createElement('div', { className: 'study-tf-bar' },
+            tfs.map(function (t) {
+              return React.createElement('button', {
+                key: t, className: 'study-tf-btn ' + (tf === t ? 'study-tf-btn--active' : ''),
+                onClick: function () { setTf(t); }
+              }, t);
+            })
+          ),
+          React.createElement(StudyReadChart, { candles: frame.candles || [], drawings: drawings, height: 300 }),
+          frame.note ? React.createElement('div', { className: 'study-note-block' },
+            React.createElement('span', { className: 'field-label' }, tf + ' 근거'),
+            React.createElement('p', null, frame.note)) : null
+        ),
+
     study.summary ? React.createElement('div', { className: 'study-note-block' },
       React.createElement('span', { className: 'field-label' }, '종합 정리'),
       React.createElement('p', null, study.summary)) : null,
@@ -3805,222 +4018,189 @@ function StudyDetail({ study, onBack, onDelete }) {
   );
 }
 
-function StudyViewMobile({ studies, onDelete }) {
+function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
   const [openId, setOpenId] = useState(null);
-  const current = studies.find((s) => s.id === openId);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState(null);
+  const [tool, setTool] = useState('none');
+  const [role, setRole] = useState('support');
+  const [pIdx, setPIdx] = useState(0);
+  const fileRef = useRef(null);
+  const current = studies.find(function (s) { return s.id === openId; });
+
+  function ridS() { return Math.random().toString(36).slice(2, 10); }
+
+  function startNew() {
+    setForm({
+      title: '', symbol: 'BTC', direction: 'long', source: '', pivotTime: '',
+      sourceMode: 'photo', timeframes: [], frames: {}, photos: [], sharedLines: [],
+      summary: '', outcome: ''
+    });
+    setPIdx(0); setCreating(true);
+  }
+
+  async function addPhotos(e) {
+    const files = Array.prototype.slice.call(e.target.files || []);
+    if (!files.length) return;
+    const added = [];
+    for (let k = 0; k < files.length; k++) {
+      try {
+        const url = await fileToResizedDataUrl(files[k], 1600, 0.85);
+        added.push({ id: ridS(), src: url, label: '', note: '', drawings: [] });
+      } catch (err) { alert('사진 처리 실패: ' + err.message); }
+    }
+    if (added.length) {
+      setForm(function (p) { return Object.assign({}, p, { photos: (p.photos || []).concat(added) }); });
+    }
+    e.target.value = '';
+  }
+
+  function setF(k, v) { setForm(function (p) { const o = {}; o[k] = v; return Object.assign({}, p, o); }); }
+  function updP(idx, patch) {
+    setForm(function (p) {
+      const arr = (p.photos || []).map(function (x, i) { return i === idx ? Object.assign({}, x, patch) : x; });
+      return Object.assign({}, p, { photos: arr });
+    });
+  }
+
+  async function save() {
+    if (!form.title.trim()) { alert('제목을 입력해 주세요.'); return; }
+    if (!(form.photos || []).length) { alert('사진을 최소 1장 추가해 주세요.'); return; }
+    await onAdd(form);
+    setCreating(false); setForm(null);
+  }
+
+  if (creating && form) {
+    const cur = (form.photos || [])[pIdx] || null;
+    return React.createElement('div', { className: 'study-view' },
+      React.createElement('div', { className: 'study-edit__head' },
+        React.createElement('button', { className: 'link-btn', onClick: function () { setCreating(false); setForm(null); } }, '← 취소'),
+        React.createElement('button', { className: 'btn btn--primary btn--small', onClick: save }, '저장')
+      ),
+      React.createElement('label', { className: 'field field--full' },
+        React.createElement('span', null, '제목'),
+        React.createElement('input', { value: form.title, onChange: function (e) { setF('title', e.target.value); }, placeholder: '예: OMG형 BTC 숏 관점' })
+      ),
+      React.createElement('div', { className: 'edit-core-grid' },
+        React.createElement('label', { className: 'edit-core-field' },
+          React.createElement('span', null, '종목'),
+          React.createElement('input', { value: form.symbol, onChange: function (e) { setF('symbol', e.target.value.toUpperCase()); } })
+        ),
+        React.createElement('label', { className: 'edit-core-field' },
+          React.createElement('span', null, '방향'),
+          React.createElement('select', { value: form.direction, onChange: function (e) { setF('direction', e.target.value); } },
+            React.createElement('option', { value: 'long' }, '롱'),
+            React.createElement('option', { value: 'short' }, '숏'))
+        ),
+        React.createElement('label', { className: 'edit-core-field' },
+          React.createElement('span', null, '출처'),
+          React.createElement('input', { value: form.source, onChange: function (e) { setF('source', e.target.value); }, placeholder: 'OMG형 등' })
+        )
+      ),
+      React.createElement('button', { className: 'btn btn--primary', onClick: function () { if (fileRef.current) fileRef.current.click(); } }, '사진 추가 (여러 장 가능)'),
+      React.createElement('input', { ref: fileRef, type: 'file', accept: 'image/*', multiple: true, style: { display: 'none' }, onChange: addPhotos }),
+
+      (form.photos || []).length > 1 ? React.createElement('div', { className: 'study-tf-bar' },
+        form.photos.map(function (p, i) {
+          return React.createElement('button', {
+            key: p.id, className: 'study-tf-btn ' + (pIdx === i ? 'study-tf-btn--active' : ''),
+            onClick: function () { setPIdx(i); }
+          }, p.label || ('사진 ' + (i + 1)));
+        })
+      ) : null,
+
+      cur ? React.createElement(React.Fragment, null,
+        React.createElement('input', {
+          className: 'photo-label-input', value: cur.label,
+          onChange: function (e) { updP(pIdx, { label: e.target.value }); },
+          placeholder: '라벨 (예: 15분봉)'
+        }),
+        React.createElement('div', { className: 'study-toolbar' },
+          React.createElement('div', { className: 'study-toolbar__group' },
+            IMG_TOOLS_M.map(function (t) {
+              return React.createElement('button', {
+                key: t.key, className: 'tool-btn ' + (tool === t.key ? 'tool-btn--active' : ''),
+                onClick: function () { setTool(t.key); }
+              }, t.label);
+            })
+          ),
+          React.createElement('div', { className: 'study-toolbar__group' },
+            Object.keys(STUDY_ROLE_LABEL).map(function (k) {
+              return React.createElement('button', {
+                key: k, className: 'role-btn role-btn--' + k + ' ' + (role === k ? 'role-btn--active' : ''),
+                onClick: function () { setRole(k); }
+              }, STUDY_ROLE_LABEL[k]);
+            })
+          ),
+          React.createElement('div', { className: 'study-toolbar__group' },
+            React.createElement('button', { className: 'tool-btn', onClick: function () { updP(pIdx, { drawings: (cur.drawings || []).slice(0, -1) }); } }, '되돌리기'),
+            React.createElement('button', { className: 'tool-btn', onClick: function () { if (confirm('그림을 모두 지울까요?')) updP(pIdx, { drawings: [] }); } }, '그림 지우기'),
+            React.createElement('button', { className: 'tool-btn', onClick: function () {
+              if (!confirm('이 사진을 삭제할까요?')) return;
+              setForm(function (p) { return Object.assign({}, p, { photos: p.photos.filter(function (_, i) { return i !== pIdx; }) }); });
+              setPIdx(0);
+            } }, '사진 삭제')
+          )
+        ),
+        React.createElement(ImageAnnotator, {
+          src: cur.src, drawings: cur.drawings || [],
+          onDrawingsChange: function (next) { updP(pIdx, { drawings: next }); },
+          tool: tool, role: role
+        }),
+        React.createElement('label', { className: 'field field--full' },
+          React.createElement('span', null, (cur.label || '이 사진') + ' 근거'),
+          React.createElement('textarea', {
+            rows: 3, value: cur.note,
+            onChange: function (e) { updP(pIdx, { note: e.target.value }); },
+            placeholder: '이 차트에서 왜 이 자리인지…'
+          })
+        )
+      ) : React.createElement('div', { className: 'empty-state' }, '사진을 추가해 주세요.'),
+
+      React.createElement('label', { className: 'field field--full' },
+        React.createElement('span', null, '종합 정리'),
+        React.createElement('textarea', { rows: 3, value: form.summary, onChange: function (e) { setF('summary', e.target.value); } })
+      ),
+      React.createElement('label', { className: 'field field--full' },
+        React.createElement('span', null, '결과'),
+        React.createElement('textarea', { rows: 2, value: form.outcome, onChange: function (e) { setF('outcome', e.target.value); } })
+      )
+    );
+  }
 
   if (current) {
-    return React.createElement(StudyDetail, { study: current, onBack: () => setOpenId(null), onDelete: (id) => { onDelete(id); setOpenId(null); } });
+    return React.createElement(StudyDetail, {
+      study: current, onBack: function () { setOpenId(null); },
+      onDelete: function (id) { onDelete(id); setOpenId(null); },
+      onUpdate: onUpdate
+    });
   }
 
   return React.createElement('div', { className: 'study-view' },
-    React.createElement('p', { className: 'edit-core-hint' }, 'PC에서 기록하고 "PC에서 가져오기"로 불러온 관점들이에요.'),
+    React.createElement('button', { className: 'btn btn--primary', style: { width: '100%' }, onClick: startNew }, '+ 사진으로 새 관점 기록'),
+    React.createElement('p', { className: 'edit-core-hint' }, '캔들 불러오는 방식은 PC에서 만들어 가져오면 돼요.'),
     studies.length === 0
-      ? React.createElement('div', { className: 'empty-state' }, '아직 기록이 없어요. PC에서 만들어 가져와 주세요.')
-      : studies.map((s) => React.createElement('div', { key: s.id, className: 'study-card' },
-          React.createElement('div', { className: 'study-card__top' },
-            React.createElement('span', { className: 'study-card__symbol' }, s.symbol),
-            React.createElement('span', { className: 'badge ' + (s.direction === 'long' ? 'badge--long' : 'badge--short') },
-              s.direction === 'long' ? '롱' : '숏'),
-            s.source ? React.createElement('span', { className: 'study-card__source' }, s.source) : null
-          ),
-          React.createElement('p', { className: 'study-card__title' }, s.title),
-          React.createElement('p', { className: 'study-card__meta mono' },
-            (s.pivotTime || '').replace('T', ' ') + ' · ' + (s.timeframes || []).join(' / ')),
-          s.summary ? React.createElement('p', { className: 'study-card__summary' }, s.summary) : null,
-          React.createElement('div', { className: 'study-card__actions' },
-            React.createElement('button', { className: 'link-btn', onClick: () => setOpenId(s.id) }, '열기')
-          )
-        ))
+      ? React.createElement('div', { className: 'empty-state' }, '아직 기록이 없어요.')
+      : studies.map(function (s) {
+          const np = (s.photos || []).length;
+          return React.createElement('div', { key: s.id, className: 'study-card' },
+            React.createElement('div', { className: 'study-card__top' },
+              React.createElement('span', { className: 'study-card__symbol' }, s.symbol),
+              React.createElement('span', { className: 'badge ' + (s.direction === 'long' ? 'badge--long' : 'badge--short') },
+                s.direction === 'long' ? '롱' : '숏'),
+              s.source ? React.createElement('span', { className: 'study-card__source' }, s.source) : null
+            ),
+            React.createElement('p', { className: 'study-card__title' }, s.title),
+            React.createElement('p', { className: 'study-card__meta mono' },
+              (s.pivotTime || '').replace('T', ' ') +
+              ((s.sourceMode === 'photo' || np) ? ' · 사진 ' + np + '장' : ' · ' + (s.timeframes || []).join(' / '))),
+            s.summary ? React.createElement('p', { className: 'study-card__summary' }, s.summary) : null,
+            React.createElement('div', { className: 'study-card__actions' },
+              React.createElement('button', { className: 'link-btn', onClick: function () { setOpenId(s.id); } }, '열기')
+            )
+          );
+        })
   );
-}
-
-// ===== 팁 노트 컴포넌트 =====
-function TipForm({
-  onSave,
-  onCancel,
-  initial
-}) {
-  const [symbol, setSymbol] = useState(initial?.symbol || '');
-  const [note, setNote] = useState(initial?.note || '');
-  const [source, setSource] = useState(initial?.source || '');
-  function handleSubmit() {
-    if (!note.trim()) {
-      alert('내용을 입력해 주세요.');
-      return;
-    }
-    onSave({
-      symbol: symbol.toUpperCase(),
-      note,
-      source
-    });
-  }
-  return /*#__PURE__*/React.createElement("div", {
-    className: "tip-form"
-  }, /*#__PURE__*/React.createElement("label", {
-    className: "field field--full"
-  }, /*#__PURE__*/React.createElement("span", null, "종목 ", /*#__PURE__*/React.createElement("small", null, "선택사항")), /*#__PURE__*/React.createElement("input", {
-    value: symbol,
-    onChange: e => setSymbol(e.target.value.toUpperCase()),
-    placeholder: "BTC"
-  })), /*#__PURE__*/React.createElement("label", {
-    className: "field field--full"
-  }, /*#__PURE__*/React.createElement("span", null, "내용"), /*#__PURE__*/React.createElement(AutoTextarea, {
-    minRows: 4,
-    value: note,
-    onChange: e => setNote(e.target.value),
-    placeholder: "기억해 둘 팁, 패턴, 교훈…"
-  })), /*#__PURE__*/React.createElement("label", {
-    className: "field field--full"
-  }, /*#__PURE__*/React.createElement("span", null, "출처 ", /*#__PURE__*/React.createElement("small", null, "선택사항")), /*#__PURE__*/React.createElement("input", {
-    value: source,
-    onChange: e => setSource(e.target.value),
-    placeholder: "트위터, 유튜브, 본인 경험…"
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: '10px',
-      marginTop: '8px'
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "btn btn--primary",
-    onClick: handleSubmit,
-    style: {
-      flex: 1
-    }
-  }, "저장"), onCancel && /*#__PURE__*/React.createElement("button", {
-    className: "btn btn--ghost",
-    onClick: onCancel
-  }, "취소")));
-}
-function TipsView({
-  tips,
-  onAdd,
-  onEdit,
-  onDelete
-}) {
-  const [showForm, setShowForm] = useState(false);
-  const [editingTip, setEditingTip] = useState(null);
-  function handleSave(data) {
-    if (editingTip) {
-      onEdit(editingTip.id, data);
-      setEditingTip(null);
-    } else {
-      onAdd(data);
-      setShowForm(false);
-    }
-  }
-  return /*#__PURE__*/React.createElement("div", {
-    className: "tips-view"
-  }, !showForm && !editingTip && /*#__PURE__*/React.createElement("button", {
-    className: "btn btn--primary",
-    style: {
-      width: '100%',
-      marginBottom: '14px'
-    },
-    onClick: () => setShowForm(true)
-  }, "+ 팁 추가"), showForm && /*#__PURE__*/React.createElement(TipForm, {
-    onSave: handleSave,
-    onCancel: () => setShowForm(false)
-  }), tips.length === 0 && !showForm && /*#__PURE__*/React.createElement("div", {
-    className: "empty-state"
-  }, "팁 노트가 없어요. 위 버튼으로 추가해 보세요."), tips.map(tip => /*#__PURE__*/React.createElement("div", {
-    key: tip.id,
-    className: "tip-card"
-  }, editingTip?.id === tip.id ? /*#__PURE__*/React.createElement(TipForm, {
-    initial: tip,
-    onSave: handleSave,
-    onCancel: () => setEditingTip(null)
-  }) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    className: "tip-card__top"
-  }, tip.symbol && /*#__PURE__*/React.createElement("span", {
-    className: "tip-card__symbol"
-  }, tip.symbol), tip.source && /*#__PURE__*/React.createElement("span", {
-    className: "tip-card__source"
-  }, tip.source)), /*#__PURE__*/React.createElement("p", {
-    className: "tip-card__note"
-  }, tip.note), /*#__PURE__*/React.createElement("div", {
-    className: "tip-card__actions"
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "link-btn",
-    onClick: () => setEditingTip(tip)
-  }, "수정"), /*#__PURE__*/React.createElement("button", {
-    className: "link-btn link-btn--danger",
-    onClick: () => onDelete(tip.id)
-  }, "삭제"))))));
-}
-
-// ===== 바텀시트 =====
-function ExportSheet({
-  onClose,
-  onSelect
-}) {
-  return /*#__PURE__*/React.createElement("div", {
-    onClick: onClose,
-    style: {
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0,0,0,0.5)',
-      zIndex: 1000,
-      display: 'flex',
-      alignItems: 'flex-end'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    onClick: e => e.stopPropagation(),
-    style: {
-      background: '#1a1e2a',
-      width: '100%',
-      borderRadius: '16px 16px 0 0',
-      paddingBottom: 'calc(16px + env(safe-area-inset-bottom))'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: 'center',
-      color: '#8b92a3',
-      fontSize: '12px',
-      padding: '16px 20px',
-      borderBottom: '1px solid #1f2430'
-    }
-  }, "내보낼 범위를 선택하세요"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onSelect(true),
-    style: {
-      display: 'block',
-      width: '100%',
-      padding: '18px 20px',
-      background: 'none',
-      border: 'none',
-      borderBottom: '1px solid #1f2430',
-      color: '#f0b429',
-      fontSize: '17px',
-      fontWeight: '600',
-      textAlign: 'center'
-    }
-  }, "안 옮긴 것만"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onSelect(false),
-    style: {
-      display: 'block',
-      width: '100%',
-      padding: '18px 20px',
-      background: 'none',
-      border: 'none',
-      borderBottom: '1px solid #1f2430',
-      color: '#e2e8f0',
-      fontSize: '17px',
-      textAlign: 'center'
-    }
-  }, "전체"), /*#__PURE__*/React.createElement("button", {
-    onClick: onClose,
-    style: {
-      display: 'block',
-      width: '100%',
-      padding: '18px 20px',
-      background: 'none',
-      border: 'none',
-      color: '#8b92a3',
-      fontSize: '17px',
-      textAlign: 'center'
-    }
-  }, "취소")));
 }
 
 
@@ -4207,6 +4387,14 @@ function App() {
     await window.StudyStore.remove(id);
     loadStudies();
   }
+  async function handleAddStudy(data) {
+    await window.StudyStore.add(data);
+    loadStudies();
+  }
+  async function handleUpdateStudy(id, patch) {
+    await window.StudyStore.update(id, patch);
+    loadStudies();
+  }
   function handleBulkSaved() {
     loadTrades();
     setTab('trades');
@@ -4374,7 +4562,9 @@ function App() {
     onDelete: handleDeleteTip
   }), tab === 'study' && /*#__PURE__*/React.createElement(StudyViewMobile, {
     studies: studies,
-    onDelete: handleDeleteStudy
+    onDelete: handleDeleteStudy,
+    onAdd: handleAddStudy,
+    onUpdate: handleUpdateStudy
   }), tab === 'report' && /*#__PURE__*/React.createElement(ReportViewMobile, {
     trades: trades, tips: tips, studies: studies
   })), /*#__PURE__*/React.createElement("footer", {
