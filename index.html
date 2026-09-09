@@ -4139,7 +4139,8 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
     return React.createElement('div', { className: 'study-view' },
       React.createElement('div', { className: 'study-edit__head' },
         React.createElement('button', { className: 'link-btn', onClick: function () { setCreating(false); setForm(null); setEditingId(null); } }, '← 취소'),
-        React.createElement('span', { className: 'eyebrow' }, editingId ? '관점 수정' : '새 관점 기록')
+        React.createElement('span', { className: 'eyebrow' }, editingId ? '관점 수정' : '새 관점 기록'),
+        React.createElement('button', { className: 'btn btn--primary btn--small', onClick: save }, editingId ? '수정 저장' : '저장')
       ),
       React.createElement('label', { className: 'field field--full' },
         React.createElement('span', null, '제목'),
