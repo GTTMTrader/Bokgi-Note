@@ -4069,6 +4069,14 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
     return acc;
   }, []);
 
+  function updGalleryDrawings(studyId, photoId, next) {
+    if (!onUpdate) return;
+    const s = studies.find(function (x) { return x.id === studyId; });
+    if (!s) return;
+    const arr = (s.photos || []).map(function (p) { return p.id === photoId ? Object.assign({}, p, { drawings: next }) : p; });
+    onUpdate(studyId, { photos: arr });
+  }
+
   function ridS() { return Math.random().toString(36).slice(2, 10); }
 
   function startNew() {
@@ -4206,14 +4214,6 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
         )
       ) : React.createElement('div', { className: 'empty-state' }, '사진을 추가해 주세요.'),
 
-      React.createElement('label', { className: 'field field--full' },
-        React.createElement('span', null, '종합 정리'),
-        React.createElement(AutoTextarea, { minRows: 3, value: form.summary, onChange: function (e) { setF('summary', e.target.value); } })
-      ),
-      React.createElement('label', { className: 'field field--full' },
-        React.createElement('span', null, '결과'),
-        React.createElement(AutoTextarea, { minRows: 2, value: form.outcome, onChange: function (e) { setF('outcome', e.target.value); } })
-      ),
       React.createElement('button', { className: 'btn btn--primary', style: { width: '100%', marginTop: 4 }, onClick: save }, '저장')
     );
   }
@@ -4272,9 +4272,32 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
                   React.createElement('p', { className: 'study-card__title' }, s.title),
                   React.createElement('p', { className: 'study-card__meta mono' },
                     (i + 1) + ' / ' + galleryPhotos.length + (p.label ? ' · ' + p.label : '')),
+                  React.createElement('div', { className: 'study-toolbar' },
+                    React.createElement('div', { className: 'study-toolbar__group' },
+                      IMG_TOOLS_M.map(function (t) {
+                        return React.createElement('button', {
+                          key: t.key, className: 'tool-btn ' + (tool === t.key ? 'tool-btn--active' : ''),
+                          onClick: function () { setTool(t.key); }
+                        }, t.label);
+                      })
+                    ),
+                    React.createElement('div', { className: 'study-toolbar__group' },
+                      Object.keys(STUDY_ROLE_LABEL).map(function (k) {
+                        return React.createElement('button', {
+                          key: k, className: 'role-btn role-btn--' + k + ' ' + (role === k ? 'role-btn--active' : ''),
+                          onClick: function () { setRole(k); }
+                        }, STUDY_ROLE_LABEL[k]);
+                      })
+                    ),
+                    React.createElement('div', { className: 'study-toolbar__group' },
+                      React.createElement('button', { className: 'tool-btn', onClick: function () { updGalleryDrawings(s.id, p.id, (p.drawings || []).slice(0, -1)); } }, '되돌리기'),
+                      React.createElement('button', { className: 'tool-btn', onClick: function () { if (confirm('그림을 모두 지울까요?')) updGalleryDrawings(s.id, p.id, []); } }, '그림 지우기')
+                    )
+                  ),
                   React.createElement(ImageAnnotator, {
                     src: p.src, drawings: p.drawings || [],
-                    onDrawingsChange: function () {}, tool: 'none', role: 'support', readOnly: true
+                    onDrawingsChange: function (next) { updGalleryDrawings(s.id, p.id, next); },
+                    tool: tool, role: role, readOnly: !onUpdate
                   }),
                   p.note ? React.createElement('div', { className: 'study-note-block' },
                     React.createElement('span', { className: 'field-label' }, (p.label || '사진') + ' 근거'),
