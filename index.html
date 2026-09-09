@@ -3927,14 +3927,14 @@ function StudyDetail({ study, onBack, onDelete, onUpdate }) {
   const [pIdx, setPIdx] = useState(0);
   const [tool, setTool] = useState('none');
   const [role, setRole] = useState('support');
+  const swipeRef = useRef(null);
 
   const frame = (study.frames || {})[tf] || {};
   const drawings = (frame.drawings || []).concat(study.sharedLines || []);
-  const cur = photos[pIdx] || null;
 
-  function updCur(next) {
-    if (!cur || !onUpdate) return;
-    const arr = photos.map(function (p, i) { return i === pIdx ? Object.assign({}, p, { drawings: next }) : p; });
+  function updPhotoDrawings(idx, next) {
+    if (!onUpdate) return;
+    const arr = photos.map(function (p, i) { return i === idx ? Object.assign({}, p, { drawings: next }) : p; });
     onUpdate(study.id, { photos: arr });
   }
 
@@ -3954,45 +3954,78 @@ function StudyDetail({ study, onBack, onDelete, onUpdate }) {
 
     isPhoto
       ? React.createElement(React.Fragment, null,
-          photos.length > 1 ? React.createElement('div', { className: 'study-tf-bar' },
+          photos.length > 1 ? React.createElement('div', {
+              style: { display: 'flex', justifyContent: 'center', gap: 6, padding: '2px 0 12px' }
+            },
             photos.map(function (p, i) {
               return React.createElement('button', {
-                key: p.id, className: 'study-tf-btn ' + (pIdx === i ? 'study-tf-btn--active' : ''),
-                onClick: function () { setPIdx(i); }
-              }, p.label || ('사진 ' + (i + 1)));
+                key: p.id,
+                'aria-label': p.label || ('사진 ' + (i + 1)),
+                onClick: function () {
+                  const el = swipeRef.current;
+                  if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' });
+                },
+                style: {
+                  width: 7, height: 7, borderRadius: 999, border: 'none', padding: 0,
+                  background: pIdx === i ? 'var(--accent)' : 'var(--panel-border)'
+                }
+              });
             })
           ) : null,
-          cur ? React.createElement(React.Fragment, null,
-            onUpdate ? React.createElement('div', { className: 'study-toolbar' },
-              React.createElement('div', { className: 'study-toolbar__group' },
-                IMG_TOOLS_M.map(function (t) {
-                  return React.createElement('button', {
-                    key: t.key, className: 'tool-btn ' + (tool === t.key ? 'tool-btn--active' : ''),
-                    onClick: function () { setTool(t.key); }
-                  }, t.label);
-                })
-              ),
-              React.createElement('div', { className: 'study-toolbar__group' },
-                Object.keys(STUDY_ROLE_LABEL).map(function (k) {
-                  return React.createElement('button', {
-                    key: k, className: 'role-btn role-btn--' + k + ' ' + (role === k ? 'role-btn--active' : ''),
-                    onClick: function () { setRole(k); }
-                  }, STUDY_ROLE_LABEL[k]);
-                })
-              ),
-              React.createElement('div', { className: 'study-toolbar__group' },
-                React.createElement('button', { className: 'tool-btn', onClick: function () { updCur((cur.drawings || []).slice(0, -1)); } }, '되돌리기'),
-                React.createElement('button', { className: 'tool-btn', onClick: function () { if (confirm('그림을 모두 지울까요?')) updCur([]); } }, '그림 지우기')
-              )
-            ) : null,
-            React.createElement(ImageAnnotator, {
-              src: cur.src, drawings: cur.drawings || [],
-              onDrawingsChange: updCur, tool: tool, role: role, readOnly: !onUpdate
-            }),
-            cur.note ? React.createElement('div', { className: 'study-note-block' },
-              React.createElement('span', { className: 'field-label' }, (cur.label || '사진') + ' 근거'),
-              React.createElement('p', null, cur.note)) : null
-          ) : null
+          React.createElement('div', {
+            ref: swipeRef,
+            onScroll: function (e) {
+              const el = e.currentTarget;
+              if (!el.clientWidth) return;
+              const idx = Math.round(el.scrollLeft / el.clientWidth);
+              if (idx !== pIdx) setPIdx(idx);
+            },
+            style: {
+              display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory',
+              WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain',
+              margin: '0 -20px'
+            }
+          },
+            photos.map(function (p, i) {
+              return React.createElement('div', {
+                key: p.id,
+                style: { flex: '0 0 100%', minWidth: 0, scrollSnapAlign: 'center', padding: '0 20px', boxSizing: 'border-box' }
+              },
+                photos.length > 1 ? React.createElement('p', { className: 'study-card__meta mono' },
+                  (i + 1) + ' / ' + photos.length + (p.label ? ' · ' + p.label : '')) : null,
+                onUpdate ? React.createElement('div', { className: 'study-toolbar' },
+                  React.createElement('div', { className: 'study-toolbar__group' },
+                    IMG_TOOLS_M.map(function (t) {
+                      return React.createElement('button', {
+                        key: t.key, className: 'tool-btn ' + (tool === t.key ? 'tool-btn--active' : ''),
+                        onClick: function () { setTool(t.key); }
+                      }, t.label);
+                    })
+                  ),
+                  React.createElement('div', { className: 'study-toolbar__group' },
+                    Object.keys(STUDY_ROLE_LABEL).map(function (k) {
+                      return React.createElement('button', {
+                        key: k, className: 'role-btn role-btn--' + k + ' ' + (role === k ? 'role-btn--active' : ''),
+                        onClick: function () { setRole(k); }
+                      }, STUDY_ROLE_LABEL[k]);
+                    })
+                  ),
+                  React.createElement('div', { className: 'study-toolbar__group' },
+                    React.createElement('button', { className: 'tool-btn', onClick: function () { updPhotoDrawings(i, (p.drawings || []).slice(0, -1)); } }, '되돌리기'),
+                    React.createElement('button', { className: 'tool-btn', onClick: function () { if (confirm('그림을 모두 지울까요?')) updPhotoDrawings(i, []); } }, '그림 지우기')
+                  )
+                ) : null,
+                React.createElement(ImageAnnotator, {
+                  src: p.src, drawings: p.drawings || [],
+                  onDrawingsChange: function (next) { updPhotoDrawings(i, next); },
+                  tool: tool, role: role, readOnly: !onUpdate
+                }),
+                p.note ? React.createElement('div', { className: 'study-note-block' },
+                  React.createElement('span', { className: 'field-label' }, (p.label || '사진') + ' 근거'),
+                  React.createElement('p', null, p.note)) : null
+              );
+            })
+          )
         )
       : React.createElement(React.Fragment, null,
           React.createElement('div', { className: 'study-tf-bar' },
@@ -4074,12 +4107,11 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
     const cur = (form.photos || [])[pIdx] || null;
     return React.createElement('div', { className: 'study-view' },
       React.createElement('div', { className: 'study-edit__head' },
-        React.createElement('button', { className: 'link-btn', onClick: function () { setCreating(false); setForm(null); } }, '← 취소'),
-        React.createElement('button', { className: 'btn btn--primary btn--small', onClick: save }, '저장')
+        React.createElement('button', { className: 'link-btn', onClick: function () { setCreating(false); setForm(null); } }, '← 취소')
       ),
       React.createElement('label', { className: 'field field--full' },
         React.createElement('span', null, '제목'),
-        React.createElement('input', { value: form.title, onChange: function (e) { setF('title', e.target.value); }, placeholder: '예: OMG형 BTC 숏 관점' })
+        React.createElement('input', { value: form.title, onChange: function (e) { setF('title', e.target.value); }, placeholder: '' })
       ),
       React.createElement('div', { className: 'edit-core-grid' },
         React.createElement('label', { className: 'edit-core-field' },
@@ -4094,7 +4126,7 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
         ),
         React.createElement('label', { className: 'edit-core-field' },
           React.createElement('span', null, '출처'),
-          React.createElement('input', { value: form.source, onChange: function (e) { setF('source', e.target.value); }, placeholder: 'OMG형 등' })
+          React.createElement('input', { value: form.source, onChange: function (e) { setF('source', e.target.value); }, placeholder: '' })
         )
       ),
       React.createElement('button', { className: 'btn btn--primary', onClick: function () { if (fileRef.current) fileRef.current.click(); } }, '사진 추가 (여러 장 가능)'),
@@ -4149,8 +4181,8 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
         }),
         React.createElement('label', { className: 'field field--full' },
           React.createElement('span', null, (cur.label || '이 사진') + ' 근거'),
-          React.createElement('textarea', {
-            rows: 3, value: cur.note,
+          React.createElement(AutoTextarea, {
+            minRows: 3, value: cur.note,
             onChange: function (e) { updP(pIdx, { note: e.target.value }); },
             placeholder: '이 차트에서 왜 이 자리인지…'
           })
@@ -4159,12 +4191,13 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
 
       React.createElement('label', { className: 'field field--full' },
         React.createElement('span', null, '종합 정리'),
-        React.createElement('textarea', { rows: 3, value: form.summary, onChange: function (e) { setF('summary', e.target.value); } })
+        React.createElement(AutoTextarea, { minRows: 3, value: form.summary, onChange: function (e) { setF('summary', e.target.value); } })
       ),
       React.createElement('label', { className: 'field field--full' },
         React.createElement('span', null, '결과'),
-        React.createElement('textarea', { rows: 2, value: form.outcome, onChange: function (e) { setF('outcome', e.target.value); } })
-      )
+        React.createElement(AutoTextarea, { minRows: 2, value: form.outcome, onChange: function (e) { setF('outcome', e.target.value); } })
+      ),
+      React.createElement('button', { className: 'btn btn--primary', style: { width: '100%', marginTop: 4 }, onClick: save }, '저장')
     );
   }
 
