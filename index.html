@@ -4056,11 +4056,13 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
   const [openId, setOpenId] = useState(null);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   const [tool, setTool] = useState('none');
   const [role, setRole] = useState('support');
   const [pIdx, setPIdx] = useState(0);
   const [galleryMode, setGalleryMode] = useState(false);
   const [galleryIdx, setGalleryIdx] = useState(0);
+  const [zoomPhoto, setZoomPhoto] = useState(null);
   const galleryRef = useRef(null);
   const fileRef = useRef(null);
   const current = studies.find(function (s) { return s.id === openId; });
@@ -4085,6 +4087,15 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
       sourceMode: 'photo', timeframes: [], frames: {}, photos: [], sharedLines: [],
       summary: '', outcome: ''
     });
+    setEditingId(null);
+    setPIdx(0); setCreating(true);
+  }
+
+  function startEdit(s) {
+    setForm(Object.assign({}, s, {
+      photos: (s.photos || []).map(function (p) { return Object.assign({}, p); })
+    }));
+    setEditingId(s.id);
     setPIdx(0); setCreating(true);
   }
 
@@ -4115,15 +4126,20 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
   async function save() {
     if (!form.title.trim()) { alert('제목을 입력해 주세요.'); return; }
     if (!(form.photos || []).length) { alert('사진을 최소 1장 추가해 주세요.'); return; }
-    await onAdd(form);
-    setCreating(false); setForm(null);
+    if (editingId) {
+      await onUpdate(editingId, form);
+    } else {
+      await onAdd(form);
+    }
+    setCreating(false); setForm(null); setEditingId(null);
   }
 
   if (creating && form) {
     const cur = (form.photos || [])[pIdx] || null;
     return React.createElement('div', { className: 'study-view' },
       React.createElement('div', { className: 'study-edit__head' },
-        React.createElement('button', { className: 'link-btn', onClick: function () { setCreating(false); setForm(null); } }, '← 취소')
+        React.createElement('button', { className: 'link-btn', onClick: function () { setCreating(false); setForm(null); setEditingId(null); } }, '← 취소'),
+        React.createElement('span', { className: 'eyebrow' }, editingId ? '관점 수정' : '새 관점 기록')
       ),
       React.createElement('label', { className: 'field field--full' },
         React.createElement('span', null, '제목'),
@@ -4214,14 +4230,14 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
         )
       ) : React.createElement('div', { className: 'empty-state' }, '사진을 추가해 주세요.'),
 
-      React.createElement('button', { className: 'btn btn--primary', style: { width: '100%', marginTop: 4 }, onClick: save }, '저장')
+      React.createElement('button', { className: 'btn btn--primary', style: { width: '100%', marginTop: 4 }, onClick: save }, editingId ? '수정 저장' : '저장')
     );
   }
 
   if (galleryMode) {
     return React.createElement('div', { className: 'study-view' },
       React.createElement('div', { className: 'study-edit__head' },
-        React.createElement('button', { className: 'link-btn', onClick: function () { setGalleryMode(false); } }, '← 목록')
+        React.createElement('button', { className: 'link-btn', onClick: function () { setGalleryMode(false); setZoomPhoto(null); } }, '← 목록')
       ),
       galleryPhotos.length === 0
         ? React.createElement('div', { className: 'empty-state' }, '아직 사진이 없어요.')
@@ -4294,18 +4310,48 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
                       React.createElement('button', { className: 'tool-btn', onClick: function () { if (confirm('그림을 모두 지울까요?')) updGalleryDrawings(s.id, p.id, []); } }, '그림 지우기')
                     )
                   ),
-                  React.createElement(ImageAnnotator, {
-                    src: p.src, drawings: p.drawings || [],
-                    onDrawingsChange: function (next) { updGalleryDrawings(s.id, p.id, next); },
-                    tool: tool, role: role, readOnly: !onUpdate
-                  }),
+                  React.createElement(
+                    'div',
+                    {
+                      onClick: function () { if (tool === 'none') setZoomPhoto({ src: p.src, drawings: p.drawings || [] }); },
+                      style: { cursor: tool === 'none' ? 'zoom-in' : undefined }
+                    },
+                    React.createElement(ImageAnnotator, {
+                      src: p.src, drawings: p.drawings || [],
+                      onDrawingsChange: function (next) { updGalleryDrawings(s.id, p.id, next); },
+                      tool: tool, role: role, readOnly: !onUpdate
+                    })
+                  ),
                   p.note ? React.createElement('div', { className: 'study-note-block' },
                     React.createElement('span', { className: 'field-label' }, (p.label || '사진') + ' 근거'),
                     React.createElement('p', null, p.note)) : null
                 );
               })
             )
+          ),
+      zoomPhoto
+        ? React.createElement('div', {
+            onClick: function () { setZoomPhoto(null); },
+            style: {
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.94)', zIndex: 1000,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
+            }
+          },
+            React.createElement('div', { onClick: function (e) { e.stopPropagation(); }, style: { width: '100%', maxHeight: '92vh', overflow: 'auto' } },
+              React.createElement(ImageAnnotator, {
+                src: zoomPhoto.src, drawings: zoomPhoto.drawings,
+                onDrawingsChange: function () {}, tool: 'none', role: 'support', readOnly: true
+              })
+            ),
+            React.createElement('button', {
+              onClick: function () { setZoomPhoto(null); },
+              style: {
+                position: 'fixed', top: 16, right: 16, background: 'rgba(255,255,255,0.15)',
+                border: 'none', color: '#fff', width: 36, height: 36, borderRadius: 999, fontSize: 18, lineHeight: '36px'
+              }
+            }, '✕')
           )
+        : null
     );
   }
 
@@ -4343,7 +4389,8 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
               ((s.sourceMode === 'photo' || np) ? ' · 사진 ' + np + '장' : ' · ' + (s.timeframes || []).join(' / '))),
             s.summary ? React.createElement('p', { className: 'study-card__summary' }, s.summary) : null,
             React.createElement('div', { className: 'study-card__actions' },
-              React.createElement('button', { className: 'link-btn', onClick: function () { setOpenId(s.id); } }, '열기')
+              React.createElement('button', { className: 'link-btn', onClick: function () { setOpenId(s.id); } }, '열기'),
+              React.createElement('button', { className: 'link-btn', onClick: function () { startEdit(s); } }, '수정')
             )
           );
         })
