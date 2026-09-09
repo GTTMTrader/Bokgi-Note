@@ -2196,6 +2196,7 @@ const SETUP_TYPES = ['돌파', '눌림목', '추세추종', '역추세', '스캘
 const EMOTIONS = ['차분', '확신', '조급', 'FOMO', '복수심', '지루함', '공포', '욕심', '불안함'];
 const MISTAKE_TAGS = ['추격매수', '손절미룸', '과레버리지', '계획이탈', '조기익절', '물타기', '뇌동진입', '조급함'];
 const STOPLOSS_OPTIONS = ['걸었음', '안 걸었음', '일부만'];
+const SOURCE_PRESETS = ['KRIS', '치마쩡', '이머프'];
 const TIMEFRAMES = [
   { value: '1m', label: '1분' },
   { value: '5m', label: '5분' },
@@ -4058,8 +4059,15 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
   const [tool, setTool] = useState('none');
   const [role, setRole] = useState('support');
   const [pIdx, setPIdx] = useState(0);
+  const [galleryMode, setGalleryMode] = useState(false);
+  const [galleryIdx, setGalleryIdx] = useState(0);
+  const galleryRef = useRef(null);
   const fileRef = useRef(null);
   const current = studies.find(function (s) { return s.id === openId; });
+  const galleryPhotos = studies.reduce(function (acc, s) {
+    (s.photos || []).forEach(function (p) { acc.push({ study: s, photo: p }); });
+    return acc;
+  }, []);
 
   function ridS() { return Math.random().toString(36).slice(2, 10); }
 
@@ -4126,6 +4134,15 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
         ),
         React.createElement('label', { className: 'edit-core-field' },
           React.createElement('span', null, '출처'),
+          React.createElement('div', { className: 'tag-group', style: { marginBottom: 6 } },
+            SOURCE_PRESETS.map(function (src) {
+              return React.createElement('button', {
+                key: src, type: 'button',
+                className: 'tag-btn ' + (form.source === src ? 'tag-btn--active' : ''),
+                onClick: function () { setF('source', src); }
+              }, src);
+            })
+          ),
           React.createElement('input', { value: form.source, onChange: function (e) { setF('source', e.target.value); }, placeholder: '' })
         )
       ),
@@ -4201,6 +4218,74 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
     );
   }
 
+  if (galleryMode) {
+    return React.createElement('div', { className: 'study-view' },
+      React.createElement('div', { className: 'study-edit__head' },
+        React.createElement('button', { className: 'link-btn', onClick: function () { setGalleryMode(false); } }, '← 목록')
+      ),
+      galleryPhotos.length === 0
+        ? React.createElement('div', { className: 'empty-state' }, '아직 사진이 없어요.')
+        : React.createElement(React.Fragment, null,
+            galleryPhotos.length > 1 ? React.createElement('div', {
+                style: { display: 'flex', justifyContent: 'center', gap: 6, padding: '2px 0 12px' }
+              },
+              galleryPhotos.map(function (g, i) {
+                return React.createElement('button', {
+                  key: g.study.id + '_' + g.photo.id,
+                  onClick: function () {
+                    const el = galleryRef.current;
+                    if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' });
+                  },
+                  style: {
+                    width: 7, height: 7, borderRadius: 999, border: 'none', padding: 0,
+                    background: galleryIdx === i ? 'var(--accent)' : 'var(--panel-border)'
+                  }
+                });
+              })
+            ) : null,
+            React.createElement('div', {
+              ref: galleryRef,
+              onScroll: function (e) {
+                const el = e.currentTarget;
+                if (!el.clientWidth) return;
+                const idx = Math.round(el.scrollLeft / el.clientWidth);
+                if (idx !== galleryIdx) setGalleryIdx(idx);
+              },
+              style: {
+                display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory',
+                WebkitOverflowScrolling: 'touch', overscrollBehaviorX: 'contain',
+                margin: '0 -20px'
+              }
+            },
+              galleryPhotos.map(function (g, i) {
+                const s = g.study, p = g.photo;
+                return React.createElement('div', {
+                  key: s.id + '_' + p.id,
+                  style: { flex: '0 0 100%', minWidth: 0, scrollSnapAlign: 'center', padding: '0 20px', boxSizing: 'border-box' }
+                },
+                  React.createElement('div', { className: 'study-card__top' },
+                    React.createElement('span', { className: 'study-card__symbol' }, s.symbol),
+                    React.createElement('span', { className: 'badge ' + (s.direction === 'long' ? 'badge--long' : 'badge--short') },
+                      s.direction === 'long' ? '롱' : '숏'),
+                    s.source ? React.createElement('span', { className: 'study-card__source' }, s.source) : null
+                  ),
+                  React.createElement('p', { className: 'study-card__title' }, s.title),
+                  React.createElement('p', { className: 'study-card__meta mono' },
+                    (i + 1) + ' / ' + galleryPhotos.length + (p.label ? ' · ' + p.label : '')),
+                  React.createElement(ImageAnnotator, {
+                    src: p.src, drawings: p.drawings || [],
+                    onDrawingsChange: function () {}, tool: 'none', role: 'support', readOnly: true
+                  }),
+                  p.note ? React.createElement('div', { className: 'study-note-block' },
+                    React.createElement('span', { className: 'field-label' }, (p.label || '사진') + ' 근거'),
+                    React.createElement('p', null, p.note)) : null
+                );
+              })
+            )
+          )
+    );
+  }
+
   if (current) {
     return React.createElement(StudyDetail, {
       study: current, onBack: function () { setOpenId(null); },
@@ -4211,6 +4296,12 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
 
   return React.createElement('div', { className: 'study-view' },
     React.createElement('button', { className: 'btn btn--primary', style: { width: '100%' }, onClick: startNew }, '+ 사진으로 새 관점 기록'),
+    galleryPhotos.length > 0
+      ? React.createElement('button', {
+          className: 'btn btn--ghost', style: { width: '100%', marginTop: 8 },
+          onClick: function () { setGalleryIdx(0); setGalleryMode(true); }
+        }, '🖼 갤러리로 보기 (' + galleryPhotos.length + '장)')
+      : null,
     React.createElement('p', { className: 'edit-core-hint' }, '캔들 불러오는 방식은 PC에서 만들어 가져오면 돼요.'),
     studies.length === 0
       ? React.createElement('div', { className: 'empty-state' }, '아직 기록이 없어요.')
@@ -4572,10 +4663,21 @@ function TipsView({ tips, onAdd, onEdit, onDelete }) {
           'label',
           { className: 'field field--full' },
           React.createElement('span', null, '출처 ', React.createElement('small', null, '누가 말했는지')),
+          React.createElement(
+            'div',
+            { className: 'tag-group', style: { marginBottom: 6 } },
+            SOURCE_PRESETS.map((src) =>
+              React.createElement('button', {
+                key: src, type: 'button',
+                className: 'tag-btn ' + (form.source === src ? 'tag-btn--active' : ''),
+                onClick: () => set('source', src),
+              }, src)
+            )
+          ),
           React.createElement('input', {
             value: form.source,
             onChange: (e) => set('source', e.target.value),
-            placeholder: '예: OMG, Kris',
+            placeholder: '',
           })
         ),
         React.createElement(
