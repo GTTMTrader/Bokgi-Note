@@ -4052,6 +4052,189 @@ function StudyDetail({ study, onBack, onDelete, onUpdate }) {
   );
 }
 
+// ===== 사진 확대 보기 (핀치 줌 + 스와이프) =====
+function ZoomLightbox({ items, index, onClose }) {
+  const [idx, setIdx] = useState(index || 0);
+  const [scale, setScale] = useState(1);
+  const [off, setOff] = useState({ x: 0, y: 0 });
+  const railRef = useRef(null);
+  const pinchRef = useRef(null);
+  const panRef = useRef(null);
+  const lastTapRef = useRef(0);
+  const idxRef = useRef(idx);
+  idxRef.current = idx;
+
+  // 처음 열릴 때 눌렀던 사진 위치로 즉시 이동
+  useEffect(function () {
+    const el = railRef.current;
+    if (el) el.scrollLeft = (index || 0) * el.clientWidth;
+  }, []);
+
+  // ESC 로 닫기 (PC)
+  useEffect(function () {
+    function onKey(e) {
+      if (e.key === 'Escape') onClose(idxRef.current);
+    }
+    window.addEventListener('keydown', onKey);
+    return function () { window.removeEventListener('keydown', onKey); };
+  }, [onClose]);
+
+  function resetZoom() { setScale(1); setOff({ x: 0, y: 0 }); }
+
+  function clampScale(s) { return Math.max(1, Math.min(5, s)); }
+
+  function dist(t1, t2) {
+    const dx = t1.clientX - t2.clientX, dy = t1.clientY - t2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function onTouchStart(e) {
+    if (e.touches.length === 2) {
+      pinchRef.current = { d0: dist(e.touches[0], e.touches[1]), s0: scale };
+      panRef.current = null;
+    } else if (e.touches.length === 1 && scale > 1) {
+      panRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, ox: off.x, oy: off.y };
+    }
+  }
+
+  function onTouchMove(e) {
+    if (e.touches.length === 2 && pinchRef.current) {
+      e.preventDefault();
+      const d = dist(e.touches[0], e.touches[1]);
+      setScale(clampScale(pinchRef.current.s0 * (d / pinchRef.current.d0)));
+    } else if (e.touches.length === 1 && panRef.current && scale > 1) {
+      e.preventDefault();
+      const p = panRef.current;
+      setOff({ x: p.ox + (e.touches[0].clientX - p.x), y: p.oy + (e.touches[0].clientY - p.y) });
+    }
+  }
+
+  function onTouchEnd(e) {
+    if (e.touches.length === 0) {
+      pinchRef.current = null;
+      panRef.current = null;
+      if (scale <= 1.02) resetZoom();
+    }
+  }
+
+  // 더블탭 / 더블클릭 → 확대·축소 토글
+  function toggleZoom() {
+    if (scale > 1) resetZoom(); else setScale(2.5);
+  }
+
+  function onSlideClick() {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      lastTapRef.current = 0;
+      toggleZoom();
+    } else {
+      lastTapRef.current = now;
+    }
+  }
+
+  const zoomed = scale > 1;
+
+  return React.createElement('div', {
+    style: {
+      position: 'fixed', inset: 0, background: '#000', zIndex: 1000,
+      display: 'flex', flexDirection: 'column'
+    }
+  },
+    // 상단 바: 카운터 + 닫기
+    React.createElement('div', {
+      style: {
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '14px 16px', color: '#fff', flex: '0 0 auto'
+      }
+    },
+      React.createElement('span', { className: 'mono', style: { fontSize: 13, opacity: 0.8 } },
+        (idx + 1) + ' / ' + items.length +
+        (items[idx] && items[idx].photo.label ? ' · ' + items[idx].photo.label : '')),
+      React.createElement('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+        zoomed ? React.createElement('button', {
+          onClick: resetZoom,
+          style: {
+            background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
+            padding: '6px 12px', borderRadius: 999, fontSize: 13
+          }
+        }, '축소') : null,
+        React.createElement('button', {
+          onClick: function () { onClose(idx); },
+          style: {
+            background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
+            width: 34, height: 34, borderRadius: 999, fontSize: 17
+          }
+        }, '✕')
+      )
+    ),
+    // 사진 레일
+    React.createElement('div', {
+      ref: railRef,
+      onScroll: function (e) {
+        if (zoomed) return;
+        const el = e.currentTarget;
+        if (!el.clientWidth) return;
+        const i = Math.round(el.scrollLeft / el.clientWidth);
+        if (i !== idx) { setIdx(i); resetZoom(); }
+      },
+      onTouchStart: onTouchStart,
+      onTouchMove: onTouchMove,
+      onTouchEnd: onTouchEnd,
+      style: {
+        flex: '1 1 auto', display: 'flex',
+        overflowX: zoomed ? 'hidden' : 'auto',
+        overflowY: 'hidden',
+        scrollSnapType: zoomed ? 'none' : 'x mandatory',
+        WebkitOverflowScrolling: 'touch',
+        touchAction: zoomed ? 'none' : 'pan-x',
+        overscrollBehavior: 'contain'
+      }
+    },
+      items.map(function (g, i) {
+        const active = i === idx;
+        return React.createElement('div', {
+          key: g.study.id + '_' + g.photo.id,
+          onClick: active ? onSlideClick : undefined,
+          onDoubleClick: active ? toggleZoom : undefined,
+          style: {
+            flex: '0 0 100%', minWidth: 0, scrollSnapAlign: 'center',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '0 8px', boxSizing: 'border-box', overflow: 'hidden'
+          }
+        },
+          React.createElement('div', {
+            style: {
+              width: '100%',
+              transform: active ? 'translate(' + off.x + 'px,' + off.y + 'px) scale(' + scale + ')' : 'none',
+              transformOrigin: 'center center',
+              transition: (active && pinchRef.current) ? 'none' : 'transform 0.18s ease'
+            }
+          },
+            React.createElement(ImageAnnotator, {
+              src: g.photo.src, drawings: g.photo.drawings || [],
+              onDrawingsChange: function () {}, tool: 'none', role: 'support', readOnly: true
+            })
+          )
+        );
+      })
+    ),
+    // 하단 안내 + 관점 정보
+    React.createElement('div', {
+      style: { flex: '0 0 auto', padding: '12px 16px 20px', color: '#fff' }
+    },
+      items[idx] ? React.createElement('div', null,
+        React.createElement('div', { style: { fontSize: 13, opacity: 0.75, marginBottom: 2 } },
+          items[idx].study.symbol + ' · ' +
+          (items[idx].study.direction === 'long' ? '롱' : '숏') +
+          (items[idx].study.source ? ' · ' + items[idx].study.source : '')),
+        React.createElement('div', { style: { fontSize: 15, fontWeight: 600 } }, items[idx].study.title)
+      ) : null,
+      React.createElement('div', { style: { fontSize: 11, opacity: 0.45, marginTop: 8 } },
+        zoomed ? '한 손가락으로 이동 · 두 번 탭하면 원래대로' : '두 손가락으로 확대 · 두 번 탭해도 확대 · 옆으로 넘기면 다음 사진')
+    )
+  );
+}
+
 function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
   const [openId, setOpenId] = useState(null);
   const [creating, setCreating] = useState(false);
@@ -4062,7 +4245,7 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
   const [pIdx, setPIdx] = useState(0);
   const [galleryMode, setGalleryMode] = useState(false);
   const [galleryIdx, setGalleryIdx] = useState(0);
-  const [zoomPhoto, setZoomPhoto] = useState(null);
+  const [zoomIdx, setZoomIdx] = useState(null);
   const galleryRef = useRef(null);
   const fileRef = useRef(null);
   const current = studies.find(function (s) { return s.id === openId; });
@@ -4238,7 +4421,7 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
   if (galleryMode) {
     return React.createElement('div', { className: 'study-view' },
       React.createElement('div', { className: 'study-edit__head' },
-        React.createElement('button', { className: 'link-btn', onClick: function () { setGalleryMode(false); setZoomPhoto(null); } }, '← 목록')
+        React.createElement('button', { className: 'link-btn', onClick: function () { setGalleryMode(false); setZoomIdx(null); } }, '← 목록')
       ),
       galleryPhotos.length === 0
         ? React.createElement('div', { className: 'empty-state' }, '아직 사진이 없어요.')
@@ -4314,7 +4497,7 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
                   React.createElement(
                     'div',
                     {
-                      onClick: function () { if (tool === 'none') setZoomPhoto({ src: p.src, drawings: p.drawings || [] }); },
+                      onClick: function () { if (tool === 'none') setZoomIdx(i); },
                       style: { cursor: tool === 'none' ? 'zoom-in' : undefined }
                     },
                     React.createElement(ImageAnnotator, {
@@ -4330,28 +4513,20 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
               })
             )
           ),
-      zoomPhoto
-        ? React.createElement('div', {
-            onClick: function () { setZoomPhoto(null); },
-            style: {
-              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.94)', zIndex: 1000,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
+      zoomIdx != null
+        ? React.createElement(ZoomLightbox, {
+            items: galleryPhotos,
+            index: zoomIdx,
+            onClose: function (endIdx) {
+              setZoomIdx(null);
+              setGalleryIdx(endIdx);
+              // 확대 중에 넘긴 사진 위치로 갤러리도 맞춰준다
+              requestAnimationFrame(function () {
+                const el = galleryRef.current;
+                if (el) el.scrollLeft = endIdx * el.clientWidth;
+              });
             }
-          },
-            React.createElement('div', { onClick: function (e) { e.stopPropagation(); }, style: { width: '100%', maxHeight: '92vh', overflow: 'auto' } },
-              React.createElement(ImageAnnotator, {
-                src: zoomPhoto.src, drawings: zoomPhoto.drawings,
-                onDrawingsChange: function () {}, tool: 'none', role: 'support', readOnly: true
-              })
-            ),
-            React.createElement('button', {
-              onClick: function () { setZoomPhoto(null); },
-              style: {
-                position: 'fixed', top: 16, right: 16, background: 'rgba(255,255,255,0.15)',
-                border: 'none', color: '#fff', width: 36, height: 36, borderRadius: 999, fontSize: 18, lineHeight: '36px'
-              }
-            }, '✕')
-          )
+          })
         : null
     );
   }
