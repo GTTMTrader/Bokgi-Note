@@ -4045,6 +4045,9 @@ function StudyDetail({ study, onBack, onDelete, onUpdate }) {
             React.createElement('p', null, frame.note)) : null
         ),
 
+    study.lesson ? React.createElement('div', { className: 'study-note-block' },
+      React.createElement('span', { className: 'field-label' }, '교훈 / 배울 점'),
+      React.createElement('p', null, study.lesson)) : null,
     study.summary ? React.createElement('div', { className: 'study-note-block' },
       React.createElement('span', { className: 'field-label' }, '종합 정리'),
       React.createElement('p', null, study.summary)) : null,
@@ -4320,7 +4323,10 @@ function ZoomLightbox({ items, index, onClose }) {
           items[idx].study.symbol + ' · ' +
           (items[idx].study.direction === 'long' ? '롱' : '숏') +
           (items[idx].study.source ? ' · ' + items[idx].study.source : '')),
-        React.createElement('div', { style: { fontSize: 15, fontWeight: 600 } }, items[idx].study.title)
+        React.createElement('div', { style: { fontSize: 15, fontWeight: 600 } }, items[idx].study.title),
+        items[idx].study.lesson ? React.createElement('div', {
+          style: { fontSize: 12, opacity: 0.7, marginTop: 6, lineHeight: 1.5, maxHeight: 60, overflow: 'auto' }
+        }, '💡 ' + items[idx].study.lesson) : null
       ) : null,
       React.createElement('div', { style: { fontSize: 11, opacity: 0.45, marginTop: 8 } },
         zoomed ? '한 손가락으로 이동 · 두 번 탭하면 원래대로'
@@ -4362,7 +4368,7 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
     setForm({
       title: '', symbol: 'BTC', direction: 'long', source: '', pivotTime: '',
       sourceMode: 'photo', timeframes: [], frames: {}, photos: [], sharedLines: [],
-      summary: '', outcome: ''
+      summary: '', outcome: '', lesson: ''
     });
     setEditingId(null);
     setPIdx(0); setCreating(true);
@@ -4507,6 +4513,15 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
           })
         )
       ) : React.createElement('div', { className: 'empty-state' }, '사진을 추가해 주세요.'),
+
+      React.createElement('label', { className: 'field field--full' },
+        React.createElement('span', null, '교훈 / 배울 점'),
+        React.createElement(AutoTextarea, {
+          minRows: 3, value: form.lesson || '',
+          onChange: function (e) { setF('lesson', e.target.value); },
+          placeholder: '이 관점에서 내 매매에 적용할 점…'
+        })
+      ),
 
       React.createElement('button', { className: 'btn btn--primary', style: { width: '100%', marginTop: 4 }, onClick: save }, editingId ? '수정 저장' : '저장')
     );
@@ -4761,6 +4776,7 @@ function ReportViewMobile({ trades, tips, studies }) {
           const n = ((s.frames || {})[tf] || {}).note;
           if (n && n.trim()) L.push('  [' + tf + '] ' + n.trim().replace(/\n/g, '\n  '));
         });
+        if (s.lesson) L.push('  교훈: ' + s.lesson.trim().replace(/\n/g, '\n  '));
         if (s.summary) L.push('  종합: ' + s.summary.trim().replace(/\n/g, '\n  '));
         if (s.outcome) L.push('  결과: ' + s.outcome.trim().replace(/\n/g, '\n  '));
       });
@@ -5108,6 +5124,50 @@ function TipsView({ tips, onAdd, onEdit, onDelete }) {
   );
 }
 
+// ===== 내보내기 범위 선택 시트 =====
+function ExportSheet({ onClose, onSelect, unsyncedCount }) {
+  const btnBase = {
+    display: 'block', width: '100%', padding: '17px 20px', background: 'none',
+    border: 'none', borderBottom: '1px solid #2a3142', fontSize: 16, textAlign: 'center'
+  };
+  return React.createElement('div', {
+    onClick: onClose,
+    style: {
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000,
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center'
+    }
+  },
+    React.createElement('div', {
+      onClick: function (e) { e.stopPropagation(); },
+      style: {
+        background: '#1a1e2a', width: '100%', maxWidth: 460,
+        borderRadius: '16px 16px 0 0', overflow: 'hidden',
+        border: '1px solid #2a3142', borderBottom: 'none',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+      }
+    },
+      React.createElement('div', {
+        style: {
+          textAlign: 'center', color: '#8b92a3', fontSize: 13,
+          padding: '18px 20px', borderBottom: '1px solid #2a3142'
+        }
+      }, '내보낼 범위를 선택하세요'),
+      React.createElement('button', {
+        onClick: function () { onSelect(true); },
+        style: Object.assign({}, btnBase, { color: '#f0b429', fontWeight: 600 })
+      }, '안 옮긴 것만' + (unsyncedCount > 0 ? ' (' + unsyncedCount + '건)' : '')),
+      React.createElement('button', {
+        onClick: function () { onSelect(false); },
+        style: Object.assign({}, btnBase, { color: '#e2e8f0' })
+      }, '전체'),
+      React.createElement('button', {
+        onClick: onClose,
+        style: Object.assign({}, btnBase, { color: '#8b92a3', borderBottom: 'none' })
+      }, '취소')
+    )
+  );
+}
+
 // ===== 메인 앱 =====
 function App() {
   const [tab, setTab] = useState('entry');
@@ -5174,18 +5234,22 @@ function App() {
   async function doExport(onlyUnsynced) {
     setShowExportSheet(false);
     const json = await window.TradeStore.exportJSON(onlyUnsynced);
-    if (!json) {
-      alert(onlyUnsynced ? '안 옮긴 거래가 없어요.' : '거래가 없어요.');
-      return;
-    }
-    const parsed = JSON.parse(json);
-    // 팁도 포함해서 내보내기
+    const parsed = json ? JSON.parse(json) : { trades: [] };
+    // 팁 + 고수 복기도 함께 내보내기
     const tipsData = await window.TipStore.getAll();
+    const studiesData = await window.StudyStore.getAll();
     const combined = {
       ...parsed,
-      tips: tipsData
+      tips: tipsData,
+      studies: studiesData
     };
     const count = (parsed.trades || []).length;
+    const tipCount = (tipsData || []).length;
+    const studyCount = (studiesData || []).length;
+    if (count === 0 && tipCount === 0 && studyCount === 0) {
+      alert(onlyUnsynced ? '안 옮긴 게 없어요.' : '내보낼 기록이 없어요.');
+      return;
+    }
     const blob = new Blob([JSON.stringify(combined, null, 2)], {
       type: 'application/json'
     });
@@ -5197,14 +5261,16 @@ function App() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    const parts = [];
+    if (count > 0) parts.push('거래 ' + count + '건');
+    if (tipCount > 0) parts.push('팁 ' + tipCount + '건');
+    if (studyCount > 0) parts.push('고수복기 ' + studyCount + '건');
     if (onlyUnsynced) {
       const ids = (parsed.trades || []).map(t => t.id).filter(Boolean);
-      await window.TradeStore.markSynced(ids);
+      if (ids.length) await window.TradeStore.markSynced(ids);
       loadTrades();
-      alert(count + '건 + 팁 내보냈어요.');
-    } else {
-      alert(count + '건 + 팁 전체 내보냈어요.');
     }
+    alert(parts.join(' + ') + ' 내보냈어요.');
   }
   async function handleImportFile(e) {
     const file = e.target.files && e.target.files[0];
@@ -5260,7 +5326,8 @@ function App() {
     className: "app-shell"
   }, showExportSheet && /*#__PURE__*/React.createElement(ExportSheet, {
     onClose: () => setShowExportSheet(false),
-    onSelect: doExport
+    onSelect: doExport,
+    unsyncedCount: unsyncedCount
   }), /*#__PURE__*/React.createElement("header", {
     className: "app-header"
   }, /*#__PURE__*/React.createElement("div", {
