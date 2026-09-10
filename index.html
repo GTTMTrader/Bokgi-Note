@@ -1513,6 +1513,8 @@ a {
 .img-annot__img{width:100%;height:auto;display:block;user-select:none;}
 .img-annot__overlay{position:absolute;left:0;top:0;z-index:5;touch-action:none;}
 .photo-label-input{width:100%;padding:8px 10px;font-size:16px;background:var(--bg-input);border:1px solid var(--panel-border);border-radius:var(--radius-sm);color:var(--text);}
+.zoom-lb-img .img-annot{width:auto;max-width:100%;max-height:100%;border-radius:0;background:transparent;}
+.zoom-lb-img .img-annot__img{width:auto;max-width:100%;max-height:100%;height:auto;}
 </style></head><body><div id="root"></div><script>/**
  * @license React
  * react.production.min.js
@@ -4052,48 +4054,62 @@ function StudyDetail({ study, onBack, onDelete, onUpdate }) {
   );
 }
 
-// ===== 사진 확대 보기 (핀치 줌 + 스와이프) =====
+// ===== 사진 확대 보기 (핀치 줌 + 스와이프 + 아래로 내려 닫기) =====
 function ZoomLightbox({ items, index, onClose }) {
   const [idx, setIdx] = useState(index || 0);
   const [scale, setScale] = useState(1);
   const [off, setOff] = useState({ x: 0, y: 0 });
+  const [dragY, setDragY] = useState(0);
   const railRef = useRef(null);
   const pinchRef = useRef(null);
   const panRef = useRef(null);
-  const lastTapRef = useRef(0);
+  const dragRef = useRef(null);
+  const tapRef = useRef({ t: 0, x: 0, y: 0, pending: null });
   const idxRef = useRef(idx);
+  const scaleRef = useRef(scale);
+  const offRef = useRef(off);
   idxRef.current = idx;
+  scaleRef.current = scale;
+  offRef.current = off;
 
-  // 처음 열릴 때 눌렀던 사진 위치로 즉시 이동
+  function close() { onClose(idxRef.current); }
+
+  // 처음 열릴 때 눌렀던 사진 위치로 이동 + 뒤 배경 스크롤 잠금
   useEffect(function () {
     const el = railRef.current;
     if (el) el.scrollLeft = (index || 0) * el.clientWidth;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return function () { document.body.style.overflow = prev; };
   }, []);
 
-  // ESC 로 닫기 (PC)
   useEffect(function () {
-    function onKey(e) {
-      if (e.key === 'Escape') onClose(idxRef.current);
-    }
+    function onKey(e) { if (e.key === 'Escape') close(); }
     window.addEventListener('keydown', onKey);
     return function () { window.removeEventListener('keydown', onKey); };
   }, [onClose]);
 
   function resetZoom() { setScale(1); setOff({ x: 0, y: 0 }); }
-
   function clampScale(s) { return Math.max(1, Math.min(5, s)); }
-
-  function dist(t1, t2) {
-    const dx = t1.clientX - t2.clientX, dy = t1.clientY - t2.clientY;
+  function dist(a, b) {
+    const dx = a.clientX - b.clientX, dy = a.clientY - b.clientY;
     return Math.sqrt(dx * dx + dy * dy);
   }
 
   function onTouchStart(e) {
     if (e.touches.length === 2) {
-      pinchRef.current = { d0: dist(e.touches[0], e.touches[1]), s0: scale };
-      panRef.current = null;
-    } else if (e.touches.length === 1 && scale > 1) {
-      panRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, ox: off.x, oy: off.y };
+      pinchRef.current = { d0: dist(e.touches[0], e.touches[1]), s0: scaleRef.current };
+      panRef.current = null; dragRef.current = null;
+      return;
+    }
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      tapRef.current.pending = { x: t.clientX, y: t.clientY, moved: false };
+      if (scaleRef.current > 1) {
+        panRef.current = { x: t.clientX, y: t.clientY, ox: offRef.current.x, oy: offRef.current.y };
+      } else {
+        dragRef.current = { x: t.clientX, y: t.clientY, decided: null };
+      }
     }
   }
 
@@ -4102,49 +4118,112 @@ function ZoomLightbox({ items, index, onClose }) {
       e.preventDefault();
       const d = dist(e.touches[0], e.touches[1]);
       setScale(clampScale(pinchRef.current.s0 * (d / pinchRef.current.d0)));
-    } else if (e.touches.length === 1 && panRef.current && scale > 1) {
+      return;
+    }
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+
+    const pend = tapRef.current.pending;
+    if (pend && (Math.abs(t.clientX - pend.x) > 10 || Math.abs(t.clientY - pend.y) > 10)) {
+      pend.moved = true;
+    }
+
+    if (scaleRef.current > 1 && panRef.current) {
       e.preventDefault();
       const p = panRef.current;
-      setOff({ x: p.ox + (e.touches[0].clientX - p.x), y: p.oy + (e.touches[0].clientY - p.y) });
+      setOff({ x: p.ox + (t.clientX - p.x), y: p.oy + (t.clientY - p.y) });
+      return;
+    }
+
+    // 확대 안 된 상태: 세로로 끌면 닫기 제스처, 가로면 사진 넘기기(브라우저 기본 스크롤)
+    const d = dragRef.current;
+    if (!d) return;
+    const dx = t.clientX - d.x, dy = t.clientY - d.y;
+    if (d.decided === null) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        d.decided = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h';
+      }
+    }
+    if (d.decided === 'v') {
+      e.preventDefault();
+      d.dy = dy;
+      setDragY(dy);
     }
   }
 
   function onTouchEnd(e) {
-    if (e.touches.length === 0) {
-      pinchRef.current = null;
-      panRef.current = null;
-      if (scale <= 1.02) resetZoom();
+    if (e.touches.length > 0) return;
+    const wasPinch = !!pinchRef.current;
+    pinchRef.current = null;
+    panRef.current = null;
+
+    const d = dragRef.current;
+    dragRef.current = null;
+
+    if (d && d.decided === 'v') {
+      // 아래로 충분히 내렸으면 닫기
+      if ((d.dy || 0) > 90) { setDragY(0); close(); return; }
+      setDragY(0);
+      return;
+    }
+
+    if (scaleRef.current <= 1.02 && !wasPinch) resetZoom();
+
+    // 두 번 탭 → 확대/축소 토글 (확대 중에도 동작)
+    const pend = tapRef.current.pending;
+    tapRef.current.pending = null;
+    if (!wasPinch && pend && !pend.moved && e.changedTouches && e.changedTouches.length === 1) {
+      const t = e.changedTouches[0];
+      const now = Date.now();
+      const near = Math.abs(t.clientX - tapRef.current.x) < 40 && Math.abs(t.clientY - tapRef.current.y) < 40;
+      if (now - tapRef.current.t < 320 && near) {
+        tapRef.current.t = 0;
+        if (scaleRef.current > 1) resetZoom(); else setScale(2.5);
+      } else {
+        tapRef.current.t = now;
+        tapRef.current.x = t.clientX;
+        tapRef.current.y = t.clientY;
+      }
     }
   }
 
-  // 더블탭 / 더블클릭 → 확대·축소 토글
-  function toggleZoom() {
-    if (scale > 1) resetZoom(); else setScale(2.5);
-  }
+  function toggleZoom() { if (scaleRef.current > 1) resetZoom(); else setScale(2.5); }
 
-  function onSlideClick() {
-    const now = Date.now();
-    if (now - lastTapRef.current < 300) {
-      lastTapRef.current = 0;
-      toggleZoom();
-    } else {
-      lastTapRef.current = now;
-    }
-  }
+  // React는 touchmove를 passive로 붙여서 preventDefault가 무시된다 → 직접 등록
+  useEffect(function () {
+    const el = railRef.current;
+    if (!el) return;
+    const opts = { passive: false };
+    el.addEventListener('touchstart', onTouchStart, opts);
+    el.addEventListener('touchmove', onTouchMove, opts);
+    el.addEventListener('touchend', onTouchEnd, opts);
+    el.addEventListener('touchcancel', onTouchEnd, opts);
+    return function () {
+      el.removeEventListener('touchstart', onTouchStart, opts);
+      el.removeEventListener('touchmove', onTouchMove, opts);
+      el.removeEventListener('touchend', onTouchEnd, opts);
+      el.removeEventListener('touchcancel', onTouchEnd, opts);
+    };
+  });
 
   const zoomed = scale > 1;
+  const closing = dragY > 0;
 
   return React.createElement('div', {
     style: {
       position: 'fixed', inset: 0, background: '#000', zIndex: 1000,
-      display: 'flex', flexDirection: 'column'
+      display: 'flex', flexDirection: 'column',
+      opacity: closing ? Math.max(0.35, 1 - dragY / 320) : 1,
+      touchAction: 'none', overscrollBehavior: 'none'
     }
   },
-    // 상단 바: 카운터 + 닫기
+    // 상단 바 — 상태표시줄 아래로 안전하게 내림
     React.createElement('div', {
       style: {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '14px 16px', color: '#fff', flex: '0 0 auto'
+        padding: '10px 12px 10px 16px',
+        paddingTop: 'max(calc(env(safe-area-inset-top, 0px) + 10px), 56px)',
+        color: '#fff', flex: '0 0 auto'
       }
     },
       React.createElement('span', { className: 'mono', style: { fontSize: 13, opacity: 0.8 } },
@@ -4154,15 +4233,16 @@ function ZoomLightbox({ items, index, onClose }) {
         zoomed ? React.createElement('button', {
           onClick: resetZoom,
           style: {
-            background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
-            padding: '6px 12px', borderRadius: 999, fontSize: 13
+            background: 'rgba(255,255,255,0.16)', border: 'none', color: '#fff',
+            padding: '9px 14px', borderRadius: 999, fontSize: 14
           }
         }, '축소') : null,
         React.createElement('button', {
-          onClick: function () { onClose(idx); },
+          'aria-label': '닫기',
+          onClick: close,
           style: {
-            background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
-            width: 34, height: 34, borderRadius: 999, fontSize: 17
+            background: 'rgba(255,255,255,0.16)', border: 'none', color: '#fff',
+            width: 44, height: 44, borderRadius: 999, fontSize: 20, lineHeight: '44px', padding: 0
           }
         }, '✕')
       )
@@ -4177,25 +4257,28 @@ function ZoomLightbox({ items, index, onClose }) {
         const i = Math.round(el.scrollLeft / el.clientWidth);
         if (i !== idx) { setIdx(i); resetZoom(); }
       },
-      onTouchStart: onTouchStart,
-      onTouchMove: onTouchMove,
-      onTouchEnd: onTouchEnd,
+      onTouchStart: undefined,
+      onTouchMove: undefined,
+      onTouchEnd: undefined,
+      onTouchCancel: undefined,
       style: {
-        flex: '1 1 auto', display: 'flex',
+        flex: '1 1 auto', display: 'flex', minHeight: 0,
         overflowX: zoomed ? 'hidden' : 'auto',
         overflowY: 'hidden',
         scrollSnapType: zoomed ? 'none' : 'x mandatory',
         WebkitOverflowScrolling: 'touch',
         touchAction: zoomed ? 'none' : 'pan-x',
-        overscrollBehavior: 'contain'
+        overscrollBehavior: 'none',
+        transform: closing ? 'translateY(' + dragY + 'px)' : 'none',
+        transition: closing ? 'none' : 'transform 0.2s ease'
       }
     },
       items.map(function (g, i) {
         const active = i === idx;
         return React.createElement('div', {
           key: g.study.id + '_' + g.photo.id,
-          onClick: active ? onSlideClick : undefined,
-          onDoubleClick: active ? toggleZoom : undefined,
+          // 사진 바깥 빈 공간을 누르면 닫기
+          onClick: function (e) { if (e.target === e.currentTarget) close(); },
           style: {
             flex: '0 0 100%', minWidth: 0, scrollSnapAlign: 'center',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -4203,11 +4286,14 @@ function ZoomLightbox({ items, index, onClose }) {
           }
         },
           React.createElement('div', {
+            className: 'zoom-lb-img',
+            onDoubleClick: active ? toggleZoom : undefined,
             style: {
-              width: '100%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              maxWidth: '100%', maxHeight: '100%',
               transform: active ? 'translate(' + off.x + 'px,' + off.y + 'px) scale(' + scale + ')' : 'none',
               transformOrigin: 'center center',
-              transition: (active && pinchRef.current) ? 'none' : 'transform 0.18s ease'
+              transition: pinchRef.current ? 'none' : 'transform 0.18s ease'
             }
           },
             React.createElement(ImageAnnotator, {
@@ -4218,11 +4304,18 @@ function ZoomLightbox({ items, index, onClose }) {
         );
       })
     ),
-    // 하단 안내 + 관점 정보
+    // 하단 — 관점 정보 (빈 곳 누르면 닫힘)
     React.createElement('div', {
-      style: { flex: '0 0 auto', padding: '12px 16px 20px', color: '#fff' }
+      onClick: function (e) { if (e.target === e.currentTarget) close(); },
+      style: {
+        flex: '0 0 auto', color: '#fff',
+        padding: '12px 16px',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)'
+      }
     },
-      items[idx] ? React.createElement('div', null,
+      items[idx] ? React.createElement('div', {
+        onClick: function (e) { if (e.target === e.currentTarget) close(); }
+      },
         React.createElement('div', { style: { fontSize: 13, opacity: 0.75, marginBottom: 2 } },
           items[idx].study.symbol + ' · ' +
           (items[idx].study.direction === 'long' ? '롱' : '숏') +
@@ -4230,7 +4323,8 @@ function ZoomLightbox({ items, index, onClose }) {
         React.createElement('div', { style: { fontSize: 15, fontWeight: 600 } }, items[idx].study.title)
       ) : null,
       React.createElement('div', { style: { fontSize: 11, opacity: 0.45, marginTop: 8 } },
-        zoomed ? '한 손가락으로 이동 · 두 번 탭하면 원래대로' : '두 손가락으로 확대 · 두 번 탭해도 확대 · 옆으로 넘기면 다음 사진')
+        zoomed ? '한 손가락으로 이동 · 두 번 탭하면 원래대로'
+               : '두 손가락 또는 두 번 탭으로 확대 · 옆으로 넘기면 다음 사진 · 아래로 내리면 닫기')
     )
   );
 }
