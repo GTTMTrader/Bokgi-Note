@@ -3947,6 +3947,7 @@ function StudyDetail({ study, onBack, onDelete, onUpdate }) {
       React.createElement('button', { className: 'link-btn link-btn--danger', onClick: function () { onDelete(study.id); } }, '삭제')
     ),
     React.createElement('div', { className: 'study-card__top' },
+      React.createElement('span', { className: 'tip-number' }, '#' + (study.number || '?')),
       React.createElement('span', { className: 'study-card__symbol' }, study.symbol),
       React.createElement('span', { className: 'badge ' + (study.direction === 'long' ? 'badge--long' : 'badge--short') },
         study.direction === 'long' ? '롱' : '숏'),
@@ -4230,7 +4231,7 @@ function ZoomLightbox({ items, index, onClose }) {
       }
     },
       React.createElement('span', { className: 'mono', style: { fontSize: 13, opacity: 0.8 } },
-        (idx + 1) + ' / ' + items.length +
+        (items[idx] ? (items[idx].study.number || '?') + '-' + (items[idx].studyPhotoIdx + 1) : '') +
         (items[idx] && items[idx].photo.label ? ' · ' + items[idx].photo.label : '')),
       React.createElement('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
         zoomed ? React.createElement('button', {
@@ -4350,9 +4351,23 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
   const fileRef = useRef(null);
   const current = studies.find(function (s) { return s.id === openId; });
   const galleryPhotos = studies.reduce(function (acc, s) {
-    (s.photos || []).forEach(function (p) { acc.push({ study: s, photo: p }); });
+    (s.photos || []).forEach(function (p, pi) { acc.push({ study: s, photo: p, studyPhotoIdx: pi }); });
     return acc;
   }, []);
+
+  function studyLabel(s) { return s.number ? String(s.number) : '?'; }
+  function photoLabel(g) { return studyLabel(g.study) + '-' + (g.studyPhotoIdx + 1); }
+
+  // 번호가 없는 기존 관점들에 한 번만 오래된 순서대로 번호를 매긴다 (표시용 번호가 매번 안 바뀌게)
+  useEffect(function () {
+    if (!onUpdate) return;
+    const missing = studies.filter(function (s) { return !s.number; });
+    if (!missing.length) return;
+    const haveNums = studies.map(function (s) { return s.number || 0; });
+    let next = haveNums.length ? Math.max.apply(null, haveNums) : 0;
+    const byOld = missing.slice().sort(function (a, b) { return new Date(a.createdAt || 0) - new Date(b.createdAt || 0); });
+    byOld.forEach(function (s) { next += 1; onUpdate(s.id, { number: next }); });
+  }, [studies]);
 
   function updGalleryDrawings(studyId, photoId, next) {
     if (!onUpdate) return;
@@ -4412,7 +4427,9 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
     if (editingId) {
       await onUpdate(editingId, form);
     } else {
-      await onAdd(form);
+      const nums = studies.map(function (s) { return s.number || 0; });
+      const nextNumber = nums.length ? Math.max.apply(null, nums) + 1 : 1;
+      await onAdd(Object.assign({}, form, { number: nextNumber }));
     }
     setCreating(false); setForm(null); setEditingId(null);
   }
@@ -4541,6 +4558,7 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
               galleryPhotos.map(function (g, i) {
                 return React.createElement('button', {
                   key: g.study.id + '_' + g.photo.id,
+                  'aria-label': photoLabel(g),
                   onClick: function () {
                     const el = galleryRef.current;
                     if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' });
@@ -4580,7 +4598,7 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
                   ),
                   React.createElement('p', { className: 'study-card__title' }, s.title),
                   React.createElement('p', { className: 'study-card__meta mono' },
-                    (i + 1) + ' / ' + galleryPhotos.length + (p.label ? ' · ' + p.label : '')),
+                    photoLabel(g) + (p.label ? ' · ' + p.label : '')),
                   React.createElement('div', { className: 'study-toolbar' },
                     React.createElement('div', { className: 'study-toolbar__group' },
                       IMG_TOOLS_M.map(function (t) {
@@ -4663,6 +4681,7 @@ function StudyViewMobile({ studies, onDelete, onAdd, onUpdate }) {
           const np = (s.photos || []).length;
           return React.createElement('div', { key: s.id, className: 'study-card' },
             React.createElement('div', { className: 'study-card__top' },
+              React.createElement('span', { className: 'tip-number' }, '#' + studyLabel(s)),
               React.createElement('span', { className: 'study-card__symbol' }, s.symbol),
               React.createElement('span', { className: 'badge ' + (s.direction === 'long' ? 'badge--long' : 'badge--short') },
                 s.direction === 'long' ? '롱' : '숏'),
