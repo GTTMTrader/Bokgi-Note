@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1.0" /><title>복기노트</title><meta name="apple-mobile-web-app-capable" content="yes" /><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" /><meta name="apple-mobile-web-app-title" content="복기노트" /><meta name="mobile-web-app-capable" content="yes" /><meta name="theme-color" content="#0b0e14" /><link rel="manifest" href="manifest.webmanifest" /><link rel="apple-touch-icon" href="apple-touch-icon.png" /><link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" /><link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" /><style>:root {
+<!doctype html><html lang="ko"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1.0" /><title>복기노트</title><meta name="apple-mobile-web-app-capable" content="yes" /><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" /><meta name="apple-mobile-web-app-title" content="복기노트" /><meta name="mobile-web-app-capable" content="yes" /><meta name="theme-color" content="#0b0e14" /><meta name="app-build" content="2026102101" /><meta name="app-version" content="2026.10.21.1" /><meta name="android-version-code" content="1" /><link rel="manifest" href="manifest.webmanifest" /><link rel="apple-touch-icon" href="apple-touch-icon.png" /><link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" /><link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" /><style>:root {
   --bg: #0b0e14;
   --bg-elevated: #12161f;
   --bg-input: #161b26;
@@ -5448,7 +5448,7 @@ function App() {
     className: "accent"
   }, "노트"))), /*#__PURE__*/React.createElement("p", {
     className: "app-header__tagline"
-  }, "매매는 끝났고, 테이프를 돌릴 시간")), /*#__PURE__*/React.createElement("nav", {
+  }, "매매는 끝났고, 테이프를 돌릴 시간", /*#__PURE__*/React.createElement("span", { className: "mono", style: { marginLeft: 8, fontSize: 11, color: "var(--text-faint)" } }, "v" + ((document.querySelector('meta[name="app-version"]') || {}).content || "")))), /*#__PURE__*/React.createElement("nav", {
     className: "tab-bar"
   }, MAIN_TABS.map(t => /*#__PURE__*/React.createElement("button", {
     key: t.key,
@@ -5518,4 +5518,221 @@ function App() {
 
 const _root = ReactDOM.createRoot(document.getElementById("root"));
 
-_root.render(/*#__PURE__*/React.createElement(App, null));</script><script>if ("serviceWorker" in navigator) { window.addEventListener("load", () => { navigator.serviceWorker.register("./service-worker.js").catch(() => {}); }); }</script></body></html>
+_root.render(/*#__PURE__*/React.createElement(App, null));</script><script>
+// ===== 앱 업데이트 알림 + 설치 안내 =====
+(function () {
+  function meta(name) {
+    var el = document.querySelector('meta[name="' + name + '"]');
+    return el ? el.getAttribute('content') : '';
+  }
+  var BUILD = Number(meta('app-build')) || 0;
+  var VERSION = meta('app-version') || '';
+  window.APP_BUILD = BUILD;
+  window.APP_VERSION = VERSION;
+
+  var isStandalone =
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+    window.navigator.standalone === true;
+
+  // ---------- 공통 카드 UI ----------
+  var style = document.createElement('style');
+  style.textContent =
+    '.upd-card{position:fixed;left:12px;right:12px;bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:900;' +
+    'max-width:520px;margin:0 auto;background:#161b26;border:1px solid #8a6a1f;border-radius:14px;padding:14px 14px 12px;' +
+    'box-shadow:0 10px 30px rgba(0,0,0,.55);color:#e8eaf0;font-family:var(--font-body);' +
+    'transform:translateY(16px);opacity:0;transition:transform .22s ease,opacity .22s ease;}' +
+    '.upd-card.is-in{transform:none;opacity:1;}' +
+    '.upd-card__title{font-size:15px;font-weight:700;margin:0 0 4px;}' +
+    '.upd-card__desc{font-size:12.5px;color:#8b92a3;margin:0 0 12px;line-height:1.5;}' +
+    '.upd-card__row{display:flex;gap:8px;}' +
+    '.upd-card__btn{flex:1 1 auto;min-height:42px;border-radius:10px;font-size:14px;font-weight:700;border:none;}' +
+    '.upd-card__btn--go{background:#f0b429;color:#221a05;}' +
+    '.upd-card__btn--go:disabled{opacity:.6;}' +
+    '.upd-card__btn--later{flex:0 0 auto;padding:0 16px;background:transparent;color:#8b92a3;border:1px solid #1f2430;}' +
+    '.upd-toast{position:fixed;left:50%;bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:900;' +
+    'transform:translate(-50%,10px);opacity:0;transition:all .22s ease;background:#163d25;color:#22c55e;' +
+    'border:1px solid #22c55e55;border-radius:999px;padding:9px 16px;font-size:13px;font-weight:700;white-space:nowrap;}' +
+    '.upd-toast.is-in{transform:translate(-50%,0);opacity:1;}';
+  document.head.appendChild(style);
+
+  var current = null;
+  function closeCard() {
+    if (!current) return;
+    var el = current;
+    current = null;
+    el.classList.remove('is-in');
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 250);
+  }
+  function showCard(opts) {
+    closeCard();
+    var el = document.createElement('div');
+    el.className = 'upd-card';
+    el.setAttribute('role', 'dialog');
+    el.innerHTML =
+      '<p class="upd-card__title"></p><p class="upd-card__desc"></p>' +
+      '<div class="upd-card__row"><button class="upd-card__btn upd-card__btn--go" type="button"></button>' +
+      '<button class="upd-card__btn upd-card__btn--later" type="button"></button></div>';
+    el.querySelector('.upd-card__title').textContent = opts.title;
+    el.querySelector('.upd-card__desc').textContent = opts.desc;
+    var go = el.querySelector('.upd-card__btn--go');
+    var later = el.querySelector('.upd-card__btn--later');
+    go.textContent = opts.goLabel;
+    later.textContent = opts.laterLabel || '나중에';
+    go.addEventListener('click', function () { opts.onGo(go); });
+    later.addEventListener('click', function () { if (opts.onLater) opts.onLater(); closeCard(); });
+    document.body.appendChild(el);
+    current = el;
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add('is-in'); }); });
+    return el;
+  }
+  function toast(msg) {
+    var el = document.createElement('div');
+    el.className = 'upd-toast';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add('is-in'); }); });
+    setTimeout(function () {
+      el.classList.remove('is-in');
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 300);
+    }, 2800);
+  }
+
+  // ---------- 업데이트 완료 안내 (새 버전으로 처음 열렸을 때 한 번) ----------
+  try {
+    var last = Number(localStorage.getItem('bokgi.lastBuild') || 0);
+    if (last && BUILD && last < BUILD) {
+      setTimeout(function () { toast('업데이트 완료 ✓ v' + VERSION); }, 600);
+    }
+    if (BUILD) localStorage.setItem('bokgi.lastBuild', String(BUILD));
+  } catch (e) {}
+
+  // ---------- 새 버전 확인 ----------
+  var checking = false;
+  var pendingBuild = 0;
+  function dismissedBuild() {
+    try { return Number(sessionStorage.getItem('bokgi.dismissedBuild') || 0); } catch (e) { return 0; }
+  }
+
+  async function applyUpdate(btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '업데이트 중…'; }
+    try {
+      // 화면 파일 캐시만 비운다 (기록이 들어있는 IndexedDB는 건드리지 않음)
+      if ('caches' in window) {
+        var keys = await caches.keys();
+        await Promise.all(keys.map(function (k) { return caches.delete(k); }));
+      }
+      if (navigator.serviceWorker) {
+        var reg = await navigator.serviceWorker.getRegistration();
+        if (reg) {
+          await reg.update().catch(function () {});
+          if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+      }
+    } catch (e) {}
+    location.reload();
+  }
+
+  async function check() {
+    if (checking || !BUILD) return;
+    if (navigator.onLine === false) return;
+    checking = true;
+    try {
+      var res = await fetch('./index.html?__vc=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) return;
+      var text = await res.text();
+      var mb = text.match(/<meta name="app-build" content="(\d+)"/);
+      var mv = text.match(/<meta name="app-version" content="([^"]+)"/);
+      var remote = mb ? Number(mb[1]) : 0;
+      if (!remote || remote <= BUILD) return;
+      if (remote === dismissedBuild() || remote === pendingBuild) return;
+      pendingBuild = remote;
+      showCard({
+        title: '🔔 업데이트 떴어요',
+        desc: '새 버전' + (mv ? ' v' + mv[1] : '') + '이 나왔어요. 입력한 기록은 그대로 남아요.',
+        goLabel: '지금 업데이트',
+        onGo: applyUpdate,
+        onLater: function () {
+          try { sessionStorage.setItem('bokgi.dismissedBuild', String(remote)); } catch (e) {}
+          pendingBuild = 0;
+        }
+      });
+    } catch (e) {
+      // 오프라인이거나 서버 응답 없음 → 조용히 넘어감
+    } finally {
+      checking = false;
+    }
+  }
+  window.bokgiCheckUpdate = check;
+
+  setTimeout(check, 3000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') check();
+  });
+  window.addEventListener('online', check);
+  setInterval(check, 30 * 60 * 1000);
+
+  // ---------- 서비스워커 ----------
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./service-worker.js').then(function (reg) {
+        // 새 서비스워커가 설치되면 바로 교체
+        reg.addEventListener('updatefound', function () {
+          var nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', function () {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              nw.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
+      }).catch(function () {});
+    });
+  }
+
+  // ---------- 안드로이드 앱(APK) ----------
+  var apkUrl = new URL('bokginote.apk', location.href).href;
+  var inApp = !!window.BokgiAndroid;
+
+  // 크롬의 '홈 화면에 설치'는 막는다 (APK 앱과 기록이 따로 저장돼서 헷갈림)
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); });
+
+  if (inApp) {
+    // 앱 껍데기(APK) 자체가 바뀌었을 때만 뜨는 안내 — 평소 업데이트는 위의 '업데이트 떴어요'로 끝
+    try {
+      var need = Number(meta('android-version-code')) || 0;
+      var have = Number(window.BokgiAndroid.appVersionCode ? window.BokgiAndroid.appVersionCode() : 0) || 0;
+      if (need > have) {
+        setTimeout(function () {
+          if (current) return;
+          showCard({
+            title: '🔔 앱 업데이트 떴어요',
+            desc: '새 앱 파일이 나왔어요. 받아서 설치하면 기록은 그대로 남아요.',
+            goLabel: '받아서 설치',
+            onGo: function () { window.BokgiAndroid.openExternal(apkUrl); closeCard(); }
+          });
+        }, 2500);
+      }
+    } catch (err) {}
+  } else if (/Android/i.test(navigator.userAgent) && !isStandalone) {
+    // 안드로이드 크롬으로 들어왔을 때 → APK 받기 안내
+    var dismissed = false;
+    try { dismissed = localStorage.getItem('bokgi.apkDismissed') === '1'; } catch (err) {}
+    if (!dismissed) {
+      setTimeout(function () {
+        if (current) return;
+        showCard({
+          title: '📲 안드로이드 앱으로 쓸 수 있어요',
+          desc: '앱 파일(APK)을 받아 설치하면 홈 화면에 복기노트가 생겨요.',
+          goLabel: '앱 받기',
+          laterLabel: '닫기',
+          onGo: function () { location.href = apkUrl; closeCard(); },
+          onLater: function () {
+            try { localStorage.setItem('bokgi.apkDismissed', '1'); } catch (err) {}
+          }
+        });
+      }, 1500);
+    }
+  }
+})();
+
+</script></body></html>
