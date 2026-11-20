@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1.0" /><title>복기노트</title><meta name="apple-mobile-web-app-capable" content="yes" /><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" /><meta name="apple-mobile-web-app-title" content="복기노트" /><meta name="mobile-web-app-capable" content="yes" /><meta name="theme-color" content="#0b0e14" /><meta name="app-build" content="2026102101" /><meta name="app-version" content="2026.10.21.1" /><meta name="android-version-code" content="1" /><link rel="manifest" href="manifest.webmanifest" /><link rel="apple-touch-icon" href="apple-touch-icon.png" /><link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" /><link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" /><style>:root {
+<!doctype html><html lang="ko"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,maximum-scale=1.0" /><title>복기노트</title><meta name="apple-mobile-web-app-capable" content="yes" /><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" /><meta name="apple-mobile-web-app-title" content="복기노트" /><meta name="mobile-web-app-capable" content="yes" /><meta name="theme-color" content="#0b0e14" /><meta name="app-build" content="2026112001" /><meta name="app-version" content="2026.11.20.1" /><meta name="android-version-code" content="1" /><link rel="manifest" href="manifest.webmanifest" /><link rel="apple-touch-icon" href="apple-touch-icon.png" /><link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" /><link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" /><style>:root {
   --bg: #0b0e14;
   --bg-elevated: #12161f;
   --bg-input: #161b26;
@@ -4128,7 +4128,9 @@ function ZoomLightbox({ items, index, onClose }) {
   const [scale, setScale] = useState(1);
   const [off, setOff] = useState({ x: 0, y: 0 });
   const [dragY, setDragY] = useState(0);
+  const [live, setLive] = useState(false); // 손가락이 닿아 있는 동안엔 애니메이션 없이 바로 따라감
   const railRef = useRef(null);
+  const imgRefs = useRef({});
   const pinchRef = useRef(null);
   const panRef = useRef(null);
   const dragRef = useRef(null);
@@ -4139,6 +4141,9 @@ function ZoomLightbox({ items, index, onClose }) {
   idxRef.current = idx;
   scaleRef.current = scale;
   offRef.current = off;
+
+  const MAX_SCALE = 5;
+  const DOUBLE_TAP_SCALE = 2.5;
 
   function close() { onClose(idxRef.current); }
 
@@ -4157,35 +4162,123 @@ function ZoomLightbox({ items, index, onClose }) {
     return function () { window.removeEventListener('keydown', onKey); };
   }, [onClose]);
 
-  function resetZoom() { setScale(1); setOff({ x: 0, y: 0 }); }
-  function clampScale(s) { return Math.max(1, Math.min(5, s)); }
+  function apply(s, t) {
+    scaleRef.current = s; offRef.current = t;
+    setScale(s); setOff(t);
+  }
+  function resetZoom() { setLive(false); apply(1, { x: 0, y: 0 }); }
   function dist(a, b) {
     const dx = a.clientX - b.clientX, dy = a.clientY - b.clientY;
     return Math.sqrt(dx * dx + dy * dy);
   }
+  function mid(a, b) { return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 }; }
+
+  // 확대 전(배율 1) 사진의 화면상 중심점
+  function baseCenter() {
+    const el = imgRefs.current[idxRef.current];
+    if (!el) return { x: 0, y: 0 };
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2 - offRef.current.x, y: r.top + r.height / 2 - offRef.current.y };
+  }
+  // 이 배율에서 사진이 움직일 수 있는 최대 거리 (사진 가장자리가 화면 안쪽으로 안 들어오게)
+  function bounds(s) {
+    const el = imgRefs.current[idxRef.current], rail = railRef.current;
+    if (!el || !rail) return { x: 0, y: 0 };
+    return {
+      x: Math.max(0, (el.offsetWidth * s - rail.clientWidth) / 2),
+      y: Math.max(0, (el.offsetHeight * s - rail.clientHeight) / 2)
+    };
+  }
+  function clampOff(t, s) {
+    const b = bounds(s);
+    return { x: Math.max(-b.x, Math.min(b.x, t.x)), y: Math.max(-b.y, Math.min(b.y, t.y)) };
+  }
+  // 끝을 넘어서 끌면 고무줄처럼 살짝만 따라옴 (손 떼면 제자리로)
+  function rubber(t, s) {
+    const b = bounds(s);
+    function r(v, m) {
+      if (v > m) return m + (v - m) * 0.3;
+      if (v < -m) return -m + (v + m) * 0.3;
+      return v;
+    }
+    return { x: r(t.x, b.x), y: r(t.y, b.y) };
+  }
+  function softScale(s) {
+    if (s < 1) return 1 - (1 - s) * 0.4;
+    if (s > MAX_SCALE) return MAX_SCALE + (s - MAX_SCALE) * 0.25;
+    return s;
+  }
+
+  // 손가락 밑 지점(f)을 고정한 채로 배율 s로 바꿨을 때의 이동값
+  function anchoredOffset(f, local, s, C) {
+    return { x: f.x - C.x - s * local.x, y: f.y - C.y - s * local.y };
+  }
+
+  function startPinch(e) {
+    const C = baseCenter();
+    const f = mid(e.touches[0], e.touches[1]);
+    const s0 = scaleRef.current, t0 = offRef.current;
+    pinchRef.current = {
+      d0: dist(e.touches[0], e.touches[1]), s0: s0, C: C,
+      local: { x: (f.x - C.x - t0.x) / s0, y: (f.y - C.y - t0.y) / s0 },
+      f: f
+    };
+    panRef.current = null; dragRef.current = null;
+    tapRef.current.pending = null;
+    setLive(true);
+  }
+  function startPan(t) {
+    panRef.current = { x: t.clientX, y: t.clientY, ox: offRef.current.x, oy: offRef.current.y };
+    setLive(true);
+  }
+
+  function settle() {
+    let s = scaleRef.current, t = offRef.current;
+    const p = pinchRef.current;
+    if (s <= 1.01) {
+      s = 1; t = { x: 0, y: 0 };
+    } else {
+      if (s > MAX_SCALE) {
+        s = MAX_SCALE;
+        if (p) t = anchoredOffset(p.f, p.local, s, p.C);
+      }
+      t = clampOff(t, s);
+    }
+    setLive(false);
+    apply(s, t);
+  }
+
+  function zoomAt(f) {
+    const C = baseCenter();
+    const s0 = scaleRef.current, t0 = offRef.current;
+    const local = { x: (f.x - C.x - t0.x) / s0, y: (f.y - C.y - t0.y) / s0 };
+    const s = DOUBLE_TAP_SCALE;
+    setLive(false);
+    apply(s, clampOff(anchoredOffset(f, local, s, C), s));
+  }
+  function toggleZoomAt(f) {
+    if (scaleRef.current > 1.01) resetZoom(); else zoomAt(f);
+  }
 
   function onTouchStart(e) {
-    if (e.touches.length === 2) {
-      pinchRef.current = { d0: dist(e.touches[0], e.touches[1]), s0: scaleRef.current };
-      panRef.current = null; dragRef.current = null;
-      return;
-    }
+    if (e.touches.length === 2) { startPinch(e); return; }
     if (e.touches.length === 1) {
       const t = e.touches[0];
       tapRef.current.pending = { x: t.clientX, y: t.clientY, moved: false };
-      if (scaleRef.current > 1) {
-        panRef.current = { x: t.clientX, y: t.clientY, ox: offRef.current.x, oy: offRef.current.y };
-      } else {
-        dragRef.current = { x: t.clientX, y: t.clientY, decided: null };
-      }
+      if (scaleRef.current > 1.01) startPan(t);
+      else dragRef.current = { x: t.clientX, y: t.clientY, decided: null };
     }
   }
 
   function onTouchMove(e) {
     if (e.touches.length === 2 && pinchRef.current) {
       e.preventDefault();
-      const d = dist(e.touches[0], e.touches[1]);
-      setScale(clampScale(pinchRef.current.s0 * (d / pinchRef.current.d0)));
+      const p = pinchRef.current;
+      const f = mid(e.touches[0], e.touches[1]);
+      const s = softScale(p.s0 * (dist(e.touches[0], e.touches[1]) / p.d0));
+      p.f = f;
+      // 핀치 중엔 손가락을 그대로 따라감 (가장자리 맞춤은 손 뗀 뒤 settle에서 부드럽게)
+      apply(s, anchoredOffset(f, p.local, s, p.C));
       return;
     }
     if (e.touches.length !== 1) return;
@@ -4196,10 +4289,11 @@ function ZoomLightbox({ items, index, onClose }) {
       pend.moved = true;
     }
 
-    if (scaleRef.current > 1 && panRef.current) {
+    if (panRef.current) {
       e.preventDefault();
       const p = panRef.current;
-      setOff({ x: p.ox + (t.clientX - p.x), y: p.oy + (t.clientY - p.y) });
+      const s = scaleRef.current;
+      apply(s, rubber({ x: p.ox + (t.clientX - p.x), y: p.oy + (t.clientY - p.y) }, s));
       return;
     }
 
@@ -4220,11 +4314,16 @@ function ZoomLightbox({ items, index, onClose }) {
   }
 
   function onTouchEnd(e) {
+    // 두 손가락 중 하나만 뗐을 때 → 남은 손가락으로 바로 이어서 이동
+    if (e.touches.length === 1 && pinchRef.current) {
+      settleKeepLive();
+      if (scaleRef.current > 1.01) startPan(e.touches[0]);
+      return;
+    }
     if (e.touches.length > 0) return;
-    const wasPinch = !!pinchRef.current;
-    pinchRef.current = null;
-    panRef.current = null;
 
+    const wasPinch = !!pinchRef.current;
+    const wasPan = !!panRef.current;
     const d = dragRef.current;
     dragRef.current = null;
 
@@ -4235,9 +4334,11 @@ function ZoomLightbox({ items, index, onClose }) {
       return;
     }
 
-    if (scaleRef.current <= 1.02 && !wasPinch) resetZoom();
+    if (wasPinch || wasPan) settle();
+    pinchRef.current = null;
+    panRef.current = null;
 
-    // 두 번 탭 → 확대/축소 토글 (확대 중에도 동작)
+    // 두 번 탭 → 누른 자리 기준으로 확대 / 원래대로
     const pend = tapRef.current.pending;
     tapRef.current.pending = null;
     if (!wasPinch && pend && !pend.moved && e.changedTouches && e.changedTouches.length === 1) {
@@ -4246,7 +4347,7 @@ function ZoomLightbox({ items, index, onClose }) {
       const near = Math.abs(t.clientX - tapRef.current.x) < 40 && Math.abs(t.clientY - tapRef.current.y) < 40;
       if (now - tapRef.current.t < 320 && near) {
         tapRef.current.t = 0;
-        if (scaleRef.current > 1) resetZoom(); else setScale(2.5);
+        toggleZoomAt({ x: t.clientX, y: t.clientY });
       } else {
         tapRef.current.t = now;
         tapRef.current.x = t.clientX;
@@ -4255,7 +4356,15 @@ function ZoomLightbox({ items, index, onClose }) {
     }
   }
 
-  function toggleZoom() { if (scaleRef.current > 1) resetZoom(); else setScale(2.5); }
+  // 핀치 중 한 손가락만 뗐을 때: 배율·위치는 정리하되 손가락은 계속 따라가게
+  function settleKeepLive() {
+    let s = scaleRef.current, t = offRef.current;
+    if (s < 1) s = 1;
+    if (s > MAX_SCALE) s = MAX_SCALE;
+    if (s <= 1.01) t = { x: 0, y: 0 }; else t = clampOff(t, s);
+    pinchRef.current = null;
+    apply(s, t);
+  }
 
   // React는 touchmove를 passive로 붙여서 preventDefault가 무시된다 → 직접 등록
   useEffect(function () {
@@ -4274,7 +4383,7 @@ function ZoomLightbox({ items, index, onClose }) {
     };
   });
 
-  const zoomed = scale > 1;
+  const zoomed = scale > 1.01;
   const closing = dragY > 0;
 
   return React.createElement('div', {
@@ -4355,13 +4464,15 @@ function ZoomLightbox({ items, index, onClose }) {
         },
           React.createElement('div', {
             className: 'zoom-lb-img',
-            onDoubleClick: active ? toggleZoom : undefined,
+            ref: function (el) { if (el) imgRefs.current[i] = el; else delete imgRefs.current[i]; },
+            onDoubleClick: active ? function (e) { toggleZoomAt({ x: e.clientX, y: e.clientY }); } : undefined,
             style: {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               maxWidth: '100%', maxHeight: '100%',
-              transform: active ? 'translate(' + off.x + 'px,' + off.y + 'px) scale(' + scale + ')' : 'none',
+              transform: active ? 'translate3d(' + off.x + 'px,' + off.y + 'px,0) scale(' + scale + ')' : 'none',
               transformOrigin: 'center center',
-              transition: pinchRef.current ? 'none' : 'transform 0.18s ease'
+              willChange: active ? 'transform' : 'auto',
+              transition: live ? 'none' : 'transform 0.34s cubic-bezier(0.22, 1, 0.36, 1)'
             }
           },
             React.createElement(ImageAnnotator, {
